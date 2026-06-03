@@ -1,14 +1,15 @@
 export default function DashboardLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <div className="flex">
+    <div className="flex justify-center h-screen">
       {/* hinh minh hoa */}
-      <div className="h-20 w-40">
-        <img 
-        className="h-full w-full"
-        src="next.svg"
-         alt="" 
+      <div className="">
+        <img
+          className="w-full h-full"
+          src="login.png"
+          alt="login image"
         />
       </div>
+
       {/* pages (login/signup)*/}
       {children}
     </div>
