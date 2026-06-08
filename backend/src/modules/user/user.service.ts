@@ -149,4 +149,26 @@ export class UserService  {
       success: true
     };
   }
+
+  async get(query: { where: string; relation?: string }) {
+    try {
+      const where = (query.where && JSON.parse(query.where)) || {};
+      const relations = (query.relation && JSON.parse(query.relation)) || null;
+
+      const [items, count] = await this.userRepository.findAndCount({
+        where,
+        relations,
+        take: 1,
+      });
+
+      return {
+        data: {
+          items,
+          count,
+        }
+      };
+    } catch (error) {
+      throw Response.errorInternal(error);
+    }
+  }
 }

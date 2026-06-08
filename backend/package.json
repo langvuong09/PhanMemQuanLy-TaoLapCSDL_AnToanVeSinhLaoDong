@@ -28,10 +28,15 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/typeorm": "^11.0.1",
     "@prisma/client": "^6.16.2",
+    "argon2": "^0.44.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "nodemailer": "^8.0.10",
     "pg": "^8.21.0",
     "prisma": "^6.16.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "smtpapi": "^1.4.7",
     "typeorm": "^1.0.0"
   },
   "devDependencies": {
@@ -43,6 +48,7 @@
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
+    "@types/nodemailer": "^8.0.0",
     "@types/supertest": "^7.0.0",
     "eslint": "^9.18.0",
     "eslint-config-prettier": "^10.0.1",

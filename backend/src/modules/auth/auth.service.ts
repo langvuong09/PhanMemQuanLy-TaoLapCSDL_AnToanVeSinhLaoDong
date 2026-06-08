@@ -4,13 +4,12 @@ import Response, { ResponseData } from "src/commons/response";
 import { ViewService } from "../view/view.service";
 import { CurrentUser, LoginModel } from "./auth.model";
 import { get } from "lodash";
-import { Doet } from "../doet/doet.entity";
 import { User } from "../user/user.entity";
 import { getManager } from "typeorm";
 import { extractHostname } from "src/commons/helper/Domain";
 import * as fs from "fs";
 import * as path from "path";
-import Email from "../../commons/helper/Email";
+// import Email from "../../commons/helper/Email";
 import * as argon from "argon2";
 
 @Injectable()
