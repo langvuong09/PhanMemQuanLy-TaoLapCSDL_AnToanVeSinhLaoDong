@@ -30,4 +30,35 @@ export class Auth extends Base {
             method: "POST"
         });
     }
+
+    async ForgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+        const result = await this.execute({
+            url: "/forgot-password",
+            method: "POST",
+            data: { email }
+        });
+        return { success: result.success, message: result.message || "" };
+    }
+
+    async VerifyOtp(email: string, otp: string): Promise<{ success: boolean; message: string; resetToken?: string }> {
+        const result = await this.execute<{ resetToken: string }>({
+            url: "/verify-otp",
+            method: "POST",
+            data: { email, otp }
+        });
+        return {
+            success: result.success,
+            message: result.message || "",
+            resetToken: result.data?.resetToken
+        };
+    }
+
+    async ResetPassword(token: string, newPassword: string, confirmPassword: string): Promise<{ success: boolean; message: string }> {
+        const result = await this.execute({
+            url: "/reset-password",
+            method: "POST",
+            data: { token, newPassword, confirmPassword }
+        });
+        return { success: result.success, message: result.message || "" };
+    }
 }

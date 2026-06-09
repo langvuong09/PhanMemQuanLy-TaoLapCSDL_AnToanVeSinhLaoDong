@@ -1,20 +1,13 @@
 'use client'
 
 import TextInput from "@/src/components/form/TextInput";
+import PasswordInput from "@/src/components/form/PasswordInput";
 import Alert from "@/src/components/ui/Alert";
 import Button from "@/src/components/ui/Button";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { 
-  mockSendForgotPasswordEmailAPI, 
-  mockVerifyOTPAPI, 
-  mockResendOTPAPI, 
-  mockResetPasswordAPI,
-  TIMERS, 
-  EMAIL_REGEX, 
-  PASSWORD_CONSTRAINTS, 
-  OTP_CONSTRAINTS 
-} from "@/src/mocks";
+import { Auth } from "@/src/api/Auth";
+import { EMAIL_REGEX, PASSWORD_CONSTRAINTS, OTP_CONSTRAINTS, TIMERS } from "@/src/mocks";
 
 type Step = "email" | "otp" | "newPassword"
 type FormErrors = {
@@ -25,15 +18,25 @@ type FormErrors = {
 }
 
 export default function ForgotPasswordPage() {
+  // Map lỗi từ backend sang tiếng Việt
+  const translateBackendMessage = (msg: string): string => {
+    const map: Record<string, string> = {
+      "Not found email": "Email chưa được đăng ký trong hệ thống",
+      "Mã OTP không hợp lệ hoặc đã hết hạn": "Mã OTP không đúng hoặc đã hết hạn. Vui lòng thử lại",
+    };
+    return map[msg] ?? msg;
+  };
+
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
+  const [resetToken, setResetToken] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [errors, setErrors] = useState<FormErrors>({});
   const [alert, setAlert] = useState<{ type: "error" | "success"; message: string } | null>(null);
   const [loading, setLoading] = useState(false);
-  const [resendTimer, setResendTimer] = useState(0); // Countdown để gửi lại
+  const [resendTimer, setResendTimer] = useState(0);
 
   // Countdown timer effect cho gửi lại
   useEffect(() => {
@@ -41,9 +44,7 @@ export default function ForgotPasswordPage() {
 
     const interval = setInterval(() => {
       setResendTimer(prev => {
-        if (prev <= 1) {
-          return 0;
-        }
+        if (prev <= 1) return 0;
         return prev - 1;
       });
     }, 1000);
@@ -99,20 +100,14 @@ export default function ForgotPasswordPage() {
   const handleSendEmail = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateEmail()) {
-      setAlert({
-        type: "error",
-        message: "Vui lòng nhập đúng định dạng email"
-      });
-      return;
-    }
+    if (!validateEmail()) return;
 
     setLoading(true);
     try {
-      // Mock API call
-      const emailExists = await mockSendForgotPasswordEmailAPI(email);
+      const auth = new Auth();
+      const result = await auth.ForgotPassword(email);
 
-      if (emailExists) {
+      if (result.success) {
         setAlert({
           type: "success",
           message: "Gửi email thành công! Vui lòng kiểm tra email để nhận mã OTP"
@@ -125,7 +120,7 @@ export default function ForgotPasswordPage() {
       } else {
         setAlert({
           type: "error",
-          message: "Email chưa đăng ký trong hệ thống"
+          message: translateBackendMessage(result.message) || "Email chưa đăng ký trong hệ thống"
         });
       }
     } catch (error) {
@@ -141,20 +136,15 @@ export default function ForgotPasswordPage() {
   const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateOTP()) {
-      setAlert({
-        type: "error",
-        message: "Vui lòng nhập đầy đủ thông tin"
-      });
-      return;
-    }
+    if (!validateOTP()) return;
 
     setLoading(true);
     try {
-      // Mock API call
-      const isValidOTP = await mockVerifyOTPAPI(otp);
+      const auth = new Auth();
+      const result = await auth.VerifyOtp(email, otp);
 
-      if (isValidOTP) {
+      if (result.success && result.resetToken) {
+        setResetToken(result.resetToken);
         setAlert({
           type: "success",
           message: "Xác nhận OTP thành công!"
@@ -166,7 +156,7 @@ export default function ForgotPasswordPage() {
       } else {
         setAlert({
           type: "error",
-          message: "Mã OTP không chính xác. Vui lòng thử lại"
+          message: translateBackendMessage(result.message) || "Mã OTP không chính xác. Vui lòng thử lại"
         });
       }
     } catch (error) {
@@ -182,10 +172,10 @@ export default function ForgotPasswordPage() {
   const handleResendOTP = async () => {
     setLoading(true);
     try {
-      // Simulate API call
-      const success = await mockResendOTPAPI(email);
-      
-      if (success) {
+      const auth = new Auth();
+      const result = await auth.ForgotPassword(email);
+
+      if (result.success) {
         setAlert({
           type: "success",
           message: "Gửi lại mã OTP thành công! Vui lòng kiểm tra email"
@@ -195,9 +185,10 @@ export default function ForgotPasswordPage() {
       } else {
         setAlert({
           type: "error",
-          message: "Không thể gửi lại mã OTP. Vui lòng thử lại sau"
+          message: result.message || "Không thể gửi lại mã OTP. Vui lòng thử lại sau"
         });
       }
+    } catch (error) {
       setAlert({
         type: "error",
         message: "Có lỗi xảy ra. Vui lòng thử lại sau"
@@ -216,27 +207,27 @@ export default function ForgotPasswordPage() {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateNewPassword()) {
-      setAlert({
-        type: "error",
-        message: "Vui lòng nhập đầy đủ thông tin hợp lệ"
-      });
-      return;
-    }
+    if (!validateNewPassword()) return;
 
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const auth = new Auth();
+      const result = await auth.ResetPassword(resetToken, newPassword, confirmPassword);
 
-      setAlert({
-        type: "success",
-        message: "Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới"
-      });
-
-      setTimeout(() => {
-        window.location.href = "/login";
-      }, 2000);
+      if (result.success) {
+        setAlert({
+          type: "success",
+          message: "Đặt lại mật khẩu thành công! Vui lòng đăng nhập với mật khẩu mới"
+        });
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 2000);
+      } else {
+        setAlert({
+          type: "error",
+          message: result.message || "Có lỗi xảy ra. Vui lòng thử lại"
+        });
+      }
     } catch (error) {
       setAlert({
         type: "error",
@@ -289,19 +280,13 @@ export default function ForgotPasswordPage() {
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
-                  if (errors.email) {
-                    setErrors({ ...errors, email: undefined });
-                  }
+                  if (errors.email) setErrors({ ...errors, email: undefined });
                 }}
                 error={errors.email}
               />
 
               <div className="flex flex-col gap-2">
-                <Button
-                  variant="primary"
-                  type="submit"
-                  loading={loading}
-                >
+                <Button variant="primary" type="submit" loading={loading}>
                   Gửi mã OTP
                 </Button>
 
@@ -315,6 +300,7 @@ export default function ForgotPasswordPage() {
             </form>
           </>
         )}
+
         {/* Step 2: OTP */}
         {step === "otp" && (
           <>
@@ -333,9 +319,7 @@ export default function ForgotPasswordPage() {
                 onChange={(e) => {
                   const value = e.target.value.replace(/\D/g, "").slice(0, 6);
                   setOtp(value);
-                  if (errors.otp) {
-                    setErrors({ ...errors, otp: undefined });
-                  }
+                  if (errors.otp) setErrors({ ...errors, otp: undefined });
                 }}
                 error={errors.otp}
               />
@@ -368,11 +352,7 @@ export default function ForgotPasswordPage() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <Button
-                  variant="primary"
-                  type="submit"
-                  loading={loading}
-                >
+                <Button variant="primary" type="submit" loading={loading}>
                   Xác nhận
                 </Button>
               </div>
@@ -394,42 +374,32 @@ export default function ForgotPasswordPage() {
               Nhập mật khẩu mới cho tài khoản của bạn
             </p>
             <form onSubmit={handleResetPassword} className="flex flex-col gap-4 w-full">
-              <TextInput
+              <PasswordInput
                 label="Mật khẩu mới"
                 placeholder="Nhập mật khẩu mới"
                 required={true}
-                type="password"
                 value={newPassword}
                 onChange={(e) => {
                   setNewPassword(e.target.value);
-                  if (errors.newPassword) {
-                    setErrors({ ...errors, newPassword: undefined });
-                  }
+                  if (errors.newPassword) setErrors({ ...errors, newPassword: undefined });
                 }}
                 error={errors.newPassword}
               />
 
-              <TextInput
+              <PasswordInput
                 label="Xác nhận mật khẩu"
                 placeholder="Nhập lại mật khẩu"
                 required={true}
-                type="password"
                 value={confirmPassword}
                 onChange={(e) => {
                   setConfirmPassword(e.target.value);
-                  if (errors.confirmPassword) {
-                    setErrors({ ...errors, confirmPassword: undefined });
-                  }
+                  if (errors.confirmPassword) setErrors({ ...errors, confirmPassword: undefined });
                 }}
                 error={errors.confirmPassword}
               />
 
               <div className="flex flex-col gap-2">
-                <Button
-                  variant="primary"
-                  type="submit"
-                  loading={loading}
-                >
+                <Button variant="primary" type="submit" loading={loading}>
                   Cập nhật mật khẩu
                 </Button>
 

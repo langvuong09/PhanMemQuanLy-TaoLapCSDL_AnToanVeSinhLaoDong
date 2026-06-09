@@ -7,6 +7,7 @@ type PasswordInputProps = {
   label: string,
   required?: boolean,
   classname?: string,
+  placeholder?: string,
   value?: string,
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void,
   disabled?: boolean,
@@ -17,6 +18,7 @@ export default function PasswordInput({
   label,
   required,
   classname,
+  placeholder = "Nhập mật khẩu",
   value,
   onChange,
   disabled = false,
@@ -32,7 +34,7 @@ export default function PasswordInput({
     >
       <div className="relative">
         <input
-          placeholder="Nhập mật khẩu"
+          placeholder={placeholder}
           className={clsx(
             "outline-none ps-4 pt-1 py-2.5 w-full disabled:bg-gray-100 disabled:cursor-not-allowed",
             {
