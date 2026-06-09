@@ -25,6 +25,7 @@ export interface ViewItem {
 }
 
 export interface AuthData {
+    refreshToken: string;
     token: string;
     views: ViewItem[];
 }
