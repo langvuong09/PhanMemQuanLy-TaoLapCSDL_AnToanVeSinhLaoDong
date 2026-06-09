@@ -25,6 +25,8 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src/sql ./dist/src/sql
 
+COPY --from=builder /app/src/templates /app/src/templates
+
 EXPOSE 3010
 
 CMD ["node", "-r", "tsconfig-paths/register", "dist/src/main.js"]
