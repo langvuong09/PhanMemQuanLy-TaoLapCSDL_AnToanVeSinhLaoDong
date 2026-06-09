@@ -13,6 +13,8 @@ import { AppService } from './app.service';
 import { DoetModule } from './modules/doet/doet.module';
 import { DomainMiddleware } from './middleware/domain.middleware';
 import { dbOptions, load } from './config';
+import { RedisModule } from './redis/redis.module';
+import { EmailModule } from './helper/email.module';
 
 @Module({
   imports: [
@@ -25,7 +27,9 @@ import { dbOptions, load } from './config';
     MediaModule,
     DoetModule,
     ViewModule,
+    RedisModule,
     AuthModule,
+    EmailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

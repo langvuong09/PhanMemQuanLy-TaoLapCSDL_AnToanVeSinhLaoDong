@@ -15,6 +15,12 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
+var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
 var __importStar = (this && this.__importStar) || (function () {
     var ownKeys = function(o) {
         ownKeys = Object.getOwnPropertyNames || function (o) {
@@ -32,48 +38,50 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __metadata = (this && this.__metadata) || function (k, v) {
+    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
+};
+var EmailService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.EmailService = void 0;
 const common_1 = require("@nestjs/common");
-const smtpapi = __importStar(require("smtpapi"));
+const config_1 = require("@nestjs/config");
 const nodemailer = __importStar(require("nodemailer"));
-const EMAIL_SENDGRID_KEY = process.env.SENDGRID_KEY || '';
-class Email {
-    static sendMail = async (email, subject, data_html, data_text = '') => {
-        const msg = {
-            to: email,
-            from: 'info@rcp.com.vn',
-            subject: subject,
-            text: data_text,
-            html: data_html,
-        };
-        return new Promise((resolve, reject) => {
-            const header = new smtpapi();
-            const headers = {
-                'x-smtpapi': header.jsonString()
-            };
-            const settings = {
-                host: 'smtp.sendgrid.net',
-                port: 587,
-                requiresAuth: true,
-                auth: {
-                    user: 'apikey',
-                    pass: EMAIL_SENDGRID_KEY,
-                },
-            };
-            const smtpTransport = nodemailer.createTransport(settings);
-            const mailOptionsNew = { ...msg, headers };
-            smtpTransport.sendMail(mailOptionsNew, (error, response) => {
-                smtpTransport.close();
-                if (error) {
-                    common_1.Logger.error(error);
-                    resolve(false);
-                }
-                else {
-                    resolve(true);
-                }
-            });
+let EmailService = EmailService_1 = class EmailService {
+    configService;
+    logger = new common_1.Logger(EmailService_1.name);
+    transporter;
+    constructor(configService) {
+        this.configService = configService;
+        this.transporter = nodemailer.createTransport({
+            host: this.configService.get('SMTP_HOST'),
+            port: this.configService.get('SMTP_PORT', 587),
+            auth: {
+                user: this.configService.get('SMTP_USER'),
+                pass: this.configService.get('SMTP_PASS'),
+            },
         });
-    };
-}
-exports.default = Email;
+    }
+    async sendMail(email, subject, html) {
+        try {
+            await this.transporter.sendMail({
+                from: '"Hệ thống VNA" <lehuuhuy211405@gmail.com>',
+                to: email,
+                subject,
+                html,
+            });
+            this.logger.log(`Email đã gửi thành công tới: ${email}`);
+            return true;
+        }
+        catch (error) {
+            this.logger.error(`Lỗi gửi email:`, error);
+            return false;
+        }
+    }
+};
+exports.EmailService = EmailService;
+exports.EmailService = EmailService = EmailService_1 = __decorate([
+    (0, common_1.Injectable)(),
+    __metadata("design:paramtypes", [config_1.ConfigService])
+], EmailService);
 //# sourceMappingURL=Email.js.map

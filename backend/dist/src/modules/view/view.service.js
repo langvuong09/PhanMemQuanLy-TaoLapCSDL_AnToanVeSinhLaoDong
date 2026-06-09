@@ -36,7 +36,7 @@ let ViewService = class ViewService extends baseService_1.BaseService {
         try {
             const data = await this.manager.query(`
   select * from views v, jsonb_array_elements(v.activities) a
-  where a->>'roleId' = $1::text and "deletedAt" is null
+  where a->>'roleId' = $1::text
 `, [roleId]);
             const items = data.map((x) => {
                 const activities = x.activities.filter((y) => y.roleId === roleId);

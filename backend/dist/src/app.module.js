@@ -18,6 +18,8 @@ const app_service_1 = require("./app.service");
 const doet_module_1 = require("./modules/doet/doet.module");
 const domain_middleware_1 = require("./middleware/domain.middleware");
 const config_2 = require("./config");
+const redis_module_1 = require("./redis/redis.module");
+const email_module_1 = require("./helper/email.module");
 let AppModule = class AppModule {
     configure(consumer) {
         consumer.apply(domain_middleware_1.DomainMiddleware).forRoutes('*');
@@ -36,7 +38,9 @@ exports.AppModule = AppModule = __decorate([
             media_module_1.MediaModule,
             doet_module_1.DoetModule,
             view_module_1.ViewModule,
+            redis_module_1.RedisModule,
             auth_module_1.AuthModule,
+            email_module_1.EmailModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],
