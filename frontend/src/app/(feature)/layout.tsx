@@ -8,7 +8,9 @@ export default function DashboardLayout({ children }: Readonly<{ children: React
       <Sidebar />
 
       {/* pages */}
-      {children}
+      <div className="flex-1 px-2">
+        {children}
+      </div>
     </div>
   )
 }

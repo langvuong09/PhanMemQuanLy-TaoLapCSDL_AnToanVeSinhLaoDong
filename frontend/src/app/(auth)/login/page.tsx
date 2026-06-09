@@ -5,72 +5,69 @@ import TextInput from "@/src/components/form/TextInput";
 import Alert from "@/src/components/ui/Alert";
 import Button from "@/src/components/ui/Button";
 import Link from "next/link";
-import { useState } from "react";
-import { mockLoginAPI, TIMERS } from "@/src/mocks";
-
-type FormErrors = {
-  account?: string;
-  password?: string;
-}
+import { useRouter } from "next/navigation";
+import { useContext, useState } from "react";
+import { Auth } from "@/src/api/Auth";
+import { AuthData } from "@/src/api/types/auth";
+import { NotificateContext } from "@/src/contexts/notificate/notificate";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const notificate = useContext(NotificateContext);
+
   const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
-  const [errors, setErrors] = useState<FormErrors>({});
   const [alert, setAlert] = useState<{ type: "error" | "success"; message: string } | null>(null);
   const [loading, setLoading] = useState(false);
 
   const validateForm = () => {
-    const newErrors: FormErrors = {};
-
-    if (!account.trim()) {
-      newErrors.account = "Vui lòng nhập tài khoản";
-    }
-    if (!password.trim()) {
-      newErrors.password = "Vui lòng nhập mật khẩu";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return account.trim() !== "" && password.trim() !== "";
   }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
-      setAlert({
-        type: "error",
-        message: "Vui lòng nhập đầy đủ thông tin"
-      });
+      notificate?.showNotification({ type: "error", message: "Vui lòng điền đầy đủ thông tin" });
       return;
     }
 
     setLoading(true);
-    try {
-      // Mock API call
-      const isValid = await mockLoginAPI(account, password);
 
-      // Mock validation
-      if (isValid) {
-        setAlert({
-          type: "success",
-          message: "Đăng nhập thành công!"
-        });
-        // Clear form
+    try {
+      const auth = new Auth();
+      const result = await auth.Login(account, password);
+      console.log(result)
+
+      if (result) {
+
+        const storage = rememberMe ? localStorage : sessionStorage;
+        storage.setItem("accessToken", result.token);
+        storage.setItem("refreshToken", result.refreshToken);
+        storage.setItem("views", JSON.stringify(result.views || []));
+
+        // Lưu token vào cookies để middleware có thể kiểm tra
+        document.cookie = `accessToken=${result.token}; path=/; max-age=${rememberMe ? 7 * 24 * 60 * 60 : undefined}`;
+
+        notificate?.showNotification({ type: "success", message: "Đăng nhập thành công." });
+
         setAccount("");
         setPassword("");
-      } else {
-        setAlert({
-          type: "error",
-          message: "Tài khoản hoặc mật khẩu không đúng. Vui lòng nhập lại"
-        });
+
+        setTimeout(() => {
+          router.replace("/dashboard"); 
+        }, 200);
+
+        return;
       }
-    } catch (error) {
-      setAlert({
-        type: "error",
-        message: "Có lỗi xảy ra. Vui lòng thử lại sau"
-      });
+
+      notificate?.showNotification({ type: "error", message: "Có lỗi xảy ra vui lòng thử lại sau." })
+
+    } catch (error: any) {
+
+      notificate?.showNotification({ type: "error", message: error });
+
     } finally {
       setLoading(false);
     }
@@ -78,10 +75,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <div className="shadow-lg p-8 flex flex-col justify-center items-center rounded-2xl w-full max-w-md">
+      <div className="shadow-3drops p-8 flex flex-col justify-center items-center rounded-2xl ">
 
         {/* logo */}
-        <div className="h-20 w-20">
+        <div className="h-30 w-30">
           <img
             className="h-full w-full"
             src="quochuy.png"
@@ -90,7 +87,7 @@ export default function LoginPage() {
         </div>
 
         {/* title */}
-        <div className="flex flex-col items-center font-bold py-3 text-2xl">
+        <div className="flex flex-col items-center font-bold py-3 text-2xl my-8">
           <h1 className="text-center">Phần Mềm Quản Lý - Tạo Lập Cơ Sở Dữ Liệu</h1>
           <h1>An Toàn Vệ Sinh Lao Động</h1>
         </div>
@@ -107,8 +104,8 @@ export default function LoginPage() {
         </div>
 
         {/* form login */}
-        <form onSubmit={handleLogin} className="flex flex-col gap-4 w-full">
-          <h2 className="text-primary font-bold text-xl">ĐĂNG NHẬP</h2>
+        <form onSubmit={handleLogin} className="flex flex-col gap-5 w-full">
+          <h2 className="text-primary font-bold text-lg">ĐĂNG NHẬP</h2>
 
           <TextInput
             label="Tài khoản"
@@ -117,11 +114,7 @@ export default function LoginPage() {
             value={account}
             onChange={(e) => {
               setAccount(e.target.value);
-              if (errors.account) {
-                setErrors({ ...errors, account: undefined });
-              }
             }}
-            error={errors.account}
           />
 
           <PasswordInput
@@ -130,11 +123,7 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
-              if (errors.password) {
-                setErrors({ ...errors, password: undefined });
-              }
             }}
-            error={errors.password}
           />
 
           <div className="flex justify-between items-center">
@@ -144,9 +133,9 @@ export default function LoginPage() {
                 id="rememberMe"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="cursor-pointer"
+                className="cursor-pointer w-5 h-5"
               />
-              <label htmlFor="rememberMe" className="text-sm cursor-pointer">Nhớ đăng nhập</label>
+              <label htmlFor="rememberMe" className="ps-3 cursor-pointer">Nhớ đăng nhập</label>
             </div>
 
             <Link
