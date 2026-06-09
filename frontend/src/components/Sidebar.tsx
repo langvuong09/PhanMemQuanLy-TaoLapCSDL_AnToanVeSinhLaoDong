@@ -3,9 +3,11 @@
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { ViewItem } from '../api/types/view'
+import UserFooter from './UserFooter'
 
 type SidebarChildItem = {
-  id: string
+  id: number
   label: string
   path: string
 }
@@ -17,90 +19,73 @@ type SidebarMenuItem = {
   items: SidebarChildItem[]
 }
 
-const initialSidebarMenus: SidebarMenuItem[] = [
-  {
-    id: 1,
-    label: 'Hệ thống',
-    isOpen: true,
-    items: [
-      {
-        id: 'permissions',
-        label: 'Phân quyền',
-        path: '/permissions',
-      },
-      {
-        id: 'roles',
-        label: 'Vai trò',
-        path: '/roles',
-      },
-      {
-        id: 'accounts',
-        label: 'Tài khoản',
-        path: '/accounts',
-      },
-      {
-        id: 'business-types',
-        label: 'Loại hình doanh nghiệp',
-        path: '/business-types',
-      },
-      {
-        id: 'business-industries',
-        label: 'Ngành nghề kinh doanh',
-        path: '/business-industries',
-      },
-      {
-        id: 'business-managements',
-        label: 'Quản lý doanh nghiệp',
-        path: '/business-managements',
-      },
-      {
-        id: 'report-periods',
-        label: 'Kỳ báo cáo',
-        path: '/report-periods',
-      },
-    ],
-  },
-  {
-    id: 2,
-    label: 'Tai nạn lao động',
-    isOpen: true,
-    items: [
-      {
-        id: 'categories',
-        label: 'Danh mục chung',
-        path: '/categories',
-      },
-      {
-        id: 'aggreements',
-        label: 'TNLD theo HĐLĐ',
-        path: '/aggreements',
-      },
-    ],
-  },
-]
-
 export default function Sidebar() {
   const router = useRouter()
   const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams();
 
-  const [sidebarMenus, setSidebarMenus] = useState<SidebarMenuItem[]>(initialSidebarMenus);
-  const [activeMenu, setActiveMenu] = useState<string>('permissions');
+  const [views, setViews] = useState<ViewItem[]>([]);
+  const [sidebarMenus, setSidebarMenus] = useState<SidebarMenuItem[]>([]);
+  const [activeMenu, setActiveMenu] = useState<string>('');
+
+  // Transform views data into sidebar menu structure
+  const transformViewsToMenus = (viewsData: ViewItem[]): SidebarMenuItem[] => {
+    // Get parent items (parentId is null)
+    const parentItems = viewsData.filter(item => item.parentId === null).sort((a, b) => (a.order || 0) - (b.order || 0));
+
+    return parentItems.map((parent) => {
+      // Get child items for this parent
+      const childItems = viewsData
+        .filter(item => item.parentId === parent.id)
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
+
+      return {
+        id: parent.id,
+        label: parent.name,
+        isOpen: true,
+        items: childItems.map(child => ({
+          id: child.id,
+          label: child.name,
+          path: child.url,
+        })),
+      };
+    });
+  };
 
   useEffect(() => {
-    const validPaths = initialSidebarMenus.flatMap((menu) =>
-      menu.items.map((item) => item.path)
-    );
-
-    if (pathname === '/' || !validPaths.includes(pathname)) {
-      router.replace('/permissions');
-      return;
+    const stored = localStorage.getItem("views") || sessionStorage.getItem("views") || "[]";
+    try {
+      const parsed: ViewItem[] = JSON.parse(stored);
+      setViews(parsed);
+      const menus = transformViewsToMenus(parsed);
+      setSidebarMenus(menus);
+    } catch (error) {
+      console.error("Error parsing views data:", error);
+      setViews([]);
+      setSidebarMenus([]);
     }
+  }, []);
 
-    setActiveMenu(pathname.replace('/', ''));
+  useEffect(() => {
+    setSidebarMenus((prevMenus) => {
+      if (prevMenus.length === 0) return prevMenus;
 
-    setSidebarMenus((prevMenus) =>
-      prevMenus.map((menu) => {
+      const allItems = prevMenus.flatMap((menu) => menu.items);
+      const validPaths = allItems.map((item) => item.path);
+
+      if (pathname === '/' || !validPaths.includes(pathname)) {
+        if (allItems.length > 0) {
+          router.replace(allItems[0].path);
+        }
+        return prevMenus;
+      }
+
+      const activeItem = allItems.find((item) => item.path === pathname);
+      if (activeItem) {
+        setActiveMenu(activeItem.id.toString());
+      }
+
+      return prevMenus.map((menu) => {
         const menuStateFromUrl = searchParams.get(String(menu.id));
 
         return {
@@ -110,8 +95,8 @@ export default function Sidebar() {
               ? menu.isOpen
               : menuStateFromUrl === 'true',
         }
-      })
-    );
+      });
+    });
   }, [pathname, searchParams, router]);
 
   const handleToggleMenu = (menuId: number) => {
@@ -129,9 +114,9 @@ export default function Sidebar() {
       prevMenus.map((menu) =>
         menu.id === menuId
           ? {
-              ...menu,
-              isOpen: nextIsOpen,
-            }
+            ...menu,
+            isOpen: nextIsOpen,
+          }
           : menu
       )
     );
@@ -181,9 +166,8 @@ export default function Sidebar() {
 
               <button onClick={() => handleToggleMenu(menu.id)}>
                 <i
-                  className={`fa-solid ${
-                    menu.isOpen ? 'fa-angle-down' : 'fa-angle-right'
-                  }`}
+                  className={`fa-solid ${menu.isOpen ? 'fa-angle-down' : 'fa-angle-right'
+                    }`}
                 ></i>
               </button>
             </div>
@@ -193,9 +177,8 @@ export default function Sidebar() {
                 {menu.items.map((item) => (
                   <li
                     key={item.id}
-                    className={`button menu-hover px-5 ${
-                      activeMenu === item.id ? 'menu-active' : ''
-                    }`}
+                    className={`button menu-hover px-5 ${activeMenu === item.id.toString() ? 'menu-active' : ''
+                      }`}
                   >
                     <Link href={getMenuPath(item.path)} className="flex items-center py-3">
                       <div className="w-5 flex justify-center">
@@ -213,17 +196,7 @@ export default function Sidebar() {
       </div>
 
       {/* Footer */}
-      <div className="flex items-center gap-5 px-5">
-        <div className="w-10 h-10 rounded-full bg-black"></div>
-
-        <div className="flex-1 flex justify-between">
-          <h1>Tài khoản A</h1>
-
-          <button>
-            <i className="fa-solid fa-chevron-right"></i>
-          </button>
-        </div>
-      </div>
+      <UserFooter />
     </div>
   )
 }

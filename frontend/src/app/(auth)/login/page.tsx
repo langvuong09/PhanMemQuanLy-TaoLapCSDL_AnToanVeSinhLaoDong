@@ -5,15 +5,45 @@ import TextInput from "@/src/components/form/TextInput";
 import Alert from "@/src/components/ui/Alert";
 import Button from "@/src/components/ui/Button";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { mockLoginAPI, TIMERS } from "@/src/mocks";
+import { Auth } from "@/src/api/Auth";
 
 type FormErrors = {
   account?: string;
   password?: string;
 }
 
+type ViewActivity = {
+  get: boolean;
+  roleId: number;
+}
+
+type View = {
+  id: number;
+  name: string;
+  activities: ViewActivity[];
+  url: string;
+  icon: string;
+  parentId: number | null;
+  doet_id: number | null;
+  order: number;
+  value: ViewActivity;
+}
+
+type LoginResponse = {
+  data?: {
+    token?: string;
+    views?: View[];
+  };
+  code: number;
+  message: string;
+  success: boolean;
+}
+
 export default function LoginPage() {
+  const router = useRouter();
+
   const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
@@ -27,12 +57,54 @@ export default function LoginPage() {
     if (!account.trim()) {
       newErrors.account = "Vui lòng nhập tài khoản";
     }
+
     if (!password.trim()) {
       newErrors.password = "Vui lòng nhập mật khẩu";
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  }
+
+  const clearAccountError = () => {
+    if (errors.account) {
+      setErrors((prev) => ({
+        ...prev,
+        account: undefined
+      }));
+    }
+  }
+
+  const clearPasswordError = () => {
+    if (errors.password) {
+      setErrors((prev) => ({
+        ...prev,
+        password: undefined
+      }));
+    }
+  }
+
+  const saveAuthData = (data: LoginResponse["data"]) => {
+    if (!data?.token) return;
+
+    const storage = rememberMe ? localStorage : sessionStorage;
+
+    storage.setItem("accessToken", data.token);
+    storage.setItem("views", JSON.stringify(data.views || []));
+  }
+
+  const handleLoginSuccess = (result: LoginResponse) => {
+    saveAuthData(result.data);
+
+    setAlert({
+      type: "success",
+      message: "Đăng nhập thành công!"
+    });
+
+    setAccount("");
+    setPassword("");
+
+    router.replace("/dashboard");
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -47,25 +119,26 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-    try {
-      // Mock API call
-      const isValid = await mockLoginAPI(account, password);
 
-      // Mock validation
+    try {
+      const auth = new Auth();
+      const result = await auth.Login(account, password) as LoginResponse;
+
+      const isValid =
+        result.success &&
+        result.code >= 200 &&
+        result.code < 300 &&
+        !!result.data?.token;
+
       if (isValid) {
-        setAlert({
-          type: "success",
-          message: "Đăng nhập thành công!"
-        });
-        // Clear form
-        setAccount("");
-        setPassword("");
-      } else {
-        setAlert({
-          type: "error",
-          message: "Tài khoản hoặc mật khẩu không đúng. Vui lòng nhập lại"
-        });
+        handleLoginSuccess(result);
+        return;
       }
+
+      setAlert({
+        type: "error",
+        message: "Tài khoản hoặc mật khẩu không đúng. Vui lòng nhập lại"
+      });
     } catch (error) {
       setAlert({
         type: "error",
@@ -117,9 +190,7 @@ export default function LoginPage() {
             value={account}
             onChange={(e) => {
               setAccount(e.target.value);
-              if (errors.account) {
-                setErrors({ ...errors, account: undefined });
-              }
+              clearAccountError();
             }}
             error={errors.account}
           />
@@ -130,9 +201,7 @@ export default function LoginPage() {
             value={password}
             onChange={(e) => {
               setPassword(e.target.value);
-              if (errors.password) {
-                setErrors({ ...errors, password: undefined });
-              }
+              clearPasswordError();
             }}
             error={errors.password}
           />
