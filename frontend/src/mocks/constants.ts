@@ -34,7 +34,7 @@ export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // Password constraints
 export const PASSWORD_CONSTRAINTS = {
-  MIN_LENGTH: 6
+  MIN_LENGTH: 8
 }
 
 // OTP constraints

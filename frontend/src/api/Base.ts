@@ -57,12 +57,13 @@ export class Base {
             }
 
         } catch (error: any) {
-            const axiosError = error as AxiosError;
+            const axiosError = error as AxiosError<ApiResponse>;
+            const serverMessage = (axiosError.response?.data as any)?.message;
 
             return {
                 success: false,
-                code: 0,
-                message: "",
+                code: axiosError.response?.status ?? 0,
+                message: typeof serverMessage === 'string' ? serverMessage : (Array.isArray(serverMessage) ? serverMessage[0] : "Có lỗi xảy ra. Vui lòng thử lại sau"),
                 data: null
             }
         }
