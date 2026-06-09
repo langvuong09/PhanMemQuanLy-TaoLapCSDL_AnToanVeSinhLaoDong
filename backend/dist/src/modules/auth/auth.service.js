@@ -41,6 +41,9 @@ var __importStar = (this && this.__importStar) || (function () {
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -54,34 +57,43 @@ const auth_model_1 = require("./auth.model");
 const lodash_1 = require("lodash");
 const user_entity_1 = require("../user/user.entity");
 const typeorm_1 = require("typeorm");
-const Domain_1 = require("../../helper/Domain");
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
 const argon = __importStar(require("argon2"));
-const Email_1 = __importDefault(require("../../helper/Email"));
+const ioredis_1 = __importDefault(require("ioredis"));
+const redis_module_1 = require("../../redis/redis.module");
+const otp_enum_1 = require("../../commons/enums/otp.enum");
+const config_1 = require("@nestjs/config");
+const Email_1 = require("../../helper/Email");
 let AuthService = class AuthService {
     jwtService;
     viewService;
     dataSource;
-    constructor(jwtService, viewService, dataSource) {
+    configService;
+    emailService;
+    redis;
+    constructor(jwtService, viewService, dataSource, configService, emailService, redis) {
         this.jwtService = jwtService;
         this.viewService = viewService;
         this.dataSource = dataSource;
+        this.configService = configService;
+        this.emailService = emailService;
+        this.redis = redis;
     }
     async login(data, doet) {
         try {
             const _doet = doet && doet.id ? doet.id : null;
             const user = new auth_model_1.CurrentUser({
                 ...data,
-                doet: _doet
+                doet: _doet,
             });
             const roleId = user.role?.id ?? 0;
             const [views, token] = await Promise.all([
                 await this.viewService.getViewsByRoleId(roleId),
-                await this.jwtService.sign({ ...user })
+                await this.jwtService.sign({ ...user }),
             ]);
             const rs = new auth_model_1.LoginModel(token, {
-                views: (0, lodash_1.get)(views, "data.items", [])
+                views: (0, lodash_1.get)(views, 'data.items', []),
             });
             return response_1.default.get(rs);
         }
@@ -95,13 +107,13 @@ let AuthService = class AuthService {
             const decodedData = await this.jwtService.verifyAsync(token);
             const user = new auth_model_1.CurrentUser({
                 ...decodedData,
-                doet: _doet
+                doet: _doet,
             });
             const roleId = user.role?.id ?? 0;
             const views = await this.viewService.getViewsByRoleId(roleId);
             const rs = new auth_model_1.LoginModel(token, {
                 user,
-                views: (0, lodash_1.get)(views, "data.items", [])
+                views: (0, lodash_1.get)(views, 'data.items', []),
             });
             return response_1.default.get(rs);
         }
@@ -109,66 +121,74 @@ let AuthService = class AuthService {
             throw response_1.default.errorInternal(error);
         }
     }
-    async forgotPassword(email, domain) {
+    async forgotPassword(email) {
         try {
             const manage = this.dataSource.manager;
             const user = await manage.findOne(user_entity_1.User, {
                 where: {
-                    email: email
-                }
+                    email: email,
+                },
             });
             if (!user) {
-                return response_1.default.errorNotFound("Not found email");
+                return response_1.default.errorNotFound('Not found email');
             }
-            const _domain = (0, Domain_1.extractHostname)(domain);
-            const codeEmail = this.jwtService.sign({
-                email: email,
-                id: user.id
-            }, {
-                expiresIn: "5m"
-            });
-            const URLReset = `https://${_domain}/reset-password?code=${codeEmail}`;
-            const template = fs.readFileSync(path.resolve(__dirname, `${process.env.dirTemp}/forgot-password.html`), {
-                encoding: "utf-8"
-            });
-            await Email_1.default.sendMail(email, "Lấy lại mật khẩu", template
-                .replace(/\$1/g, user.fullName)
-                .replace(/\$2/g, user.username)
-                .replace(/\$3/g, URLReset));
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            const redisKey = (0, otp_enum_1.getOtpKey)(otp_enum_1.OtpType.FORGOT_PASSWORD, user.id);
+            const ttl = this.configService.get('OTP_EXPIRATION_TIME') || 300;
+            await this.redis.set(redisKey, otp, 'EX', ttl);
+            const templatePath = path.join(process.cwd(), 'src', 'templates', 'forgot-password.html');
+            let template = fs.readFileSync(templatePath, { encoding: 'utf-8' });
+            template = template.split('$1').join(user.fullName);
+            template = template.split('$2').join(otp);
+            template = template.split('$3').join((ttl / 60).toString());
+            await this.emailService.sendMail(email, 'Mã xác thực lấy lại mật khẩu', template);
             return response_1.default.SUCCESSFULLY;
         }
         catch (error) {
             throw response_1.default.errorInternal(error);
         }
     }
-    async resetPassword(code) {
+    async verifyOtp(email, otp) {
+        const user = await this.dataSource.manager.findOne(user_entity_1.User, {
+            where: { email },
+        });
+        if (!user) {
+            return response_1.default.errorNotFound('Not found email');
+        }
+        const redisKey = (0, otp_enum_1.getOtpKey)(otp_enum_1.OtpType.FORGOT_PASSWORD, user.id);
+        const savedOtp = await this.redis.get(redisKey);
+        if (!savedOtp || savedOtp !== otp) {
+            return response_1.default.errorInternal('OTP không đúng hoặc đã hết hạn');
+        }
+        const resetToken = this.jwtService.sign({ email, id: user.id }, { expiresIn: '3m' });
+        return response_1.default.get({ resetToken });
+    }
+    async resetPassword(resetToken, newPassword, confirmPassword) {
         try {
-            const data = this.jwtService.decode(code);
-            const manage = this.dataSource.manager;
-            const user = await manage.findOne(user_entity_1.User, {
-                where: {
-                    id: data.id
-                }
-            });
-            if (!user) {
-                return response_1.default.errorNotFound("Not found email");
+            const decoded = this.jwtService.verify(resetToken);
+            if (newPassword !== confirmPassword) {
+                return response_1.default.errorInternal('Mật khẩu xác nhận không khớp');
             }
-            const _newPassword = await argon.hash('12345678');
-            await manage.query(`update users
-                                set password = '${_newPassword}'
-                                where id = '${data.id}'`);
+            const hashedPassword = await argon.hash(newPassword);
+            await this.dataSource.manager.update(user_entity_1.User, decoded.id, {
+                password: hashedPassword,
+            });
             return response_1.default.SUCCESSFULLY;
         }
-        catch (error) {
-            throw response_1.default.errorInternal(error);
+        catch (e) {
+            return response_1.default.errorInternal('Token không hợp lệ hoặc đã hết hạn');
         }
     }
 };
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
+    __param(5, (0, common_1.Inject)(redis_module_1.REDIS_CLIENT)),
     __metadata("design:paramtypes", [jwt_1.JwtService,
         view_service_1.ViewService,
-        typeorm_1.DataSource])
+        typeorm_1.DataSource,
+        config_1.ConfigService,
+        Email_1.EmailService,
+        ioredis_1.default])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

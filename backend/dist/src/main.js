@@ -21,33 +21,11 @@ async function runSqlScript(dataSource, filePath) {
 async function seedSampleData(app) {
     const dataSource = app.get(typeorm_1.DataSource);
     try {
-        const [{ count: roleCount }] = await dataSource.query('select count(*)::int as count from roles');
-        if (roleCount === 0) {
-            const filePath = (0, path_1.join)(__dirname, 'sql', 'role.sql');
+        const seedFiles = ['role.sql', 'doets.sql', 'user.sql', 'view.sql'];
+        for (const fileName of seedFiles) {
+            const filePath = (0, path_1.join)(__dirname, 'sql', fileName);
             if ((0, fs_1.existsSync)(filePath)) {
-                common_1.Logger.log('Seeding roles...');
-                await runSqlScript(dataSource, filePath);
-            }
-            else {
-                common_1.Logger.warn(`Seed file not found: ${filePath}`);
-            }
-        }
-        const [{ count: doetCount }] = await dataSource.query('select count(*)::int as count from doets');
-        if (doetCount === 0) {
-            const filePath = (0, path_1.join)(__dirname, 'sql', 'doets.sql');
-            if ((0, fs_1.existsSync)(filePath)) {
-                common_1.Logger.log('Seeding doets...');
-                await runSqlScript(dataSource, filePath);
-            }
-            else {
-                common_1.Logger.warn(`Seed file not found: ${filePath}`);
-            }
-        }
-        const [{ count: userCount }] = await dataSource.query('select count(*)::int as count from users');
-        if (userCount === 0) {
-            const filePath = (0, path_1.join)(__dirname, 'sql', 'user.sql');
-            if ((0, fs_1.existsSync)(filePath)) {
-                common_1.Logger.log('Seeding users...');
+                common_1.Logger.log(`Seeding ${fileName}...`);
                 await runSqlScript(dataSource, filePath);
             }
             else {

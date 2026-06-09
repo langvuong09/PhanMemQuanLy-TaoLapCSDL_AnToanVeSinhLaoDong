@@ -1,43 +1,36 @@
-import { Logger } from '@nestjs/common';
-import * as smtpapi from 'smtpapi';
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
-const EMAIL_SENDGRID_KEY = process.env.SENDGRID_KEY || '';
-export default class Email {
-  static sendMail = async (email: string, subject: string, data_html: string, data_text: string = '') => {
-    const msg = {
-      to: email,
-      from: 'info@rcp.com.vn',
-      subject: subject,
-      text: data_text,
-      html: data_html,
-    }
+@Injectable()
+export class EmailService {
+  private logger = new Logger(EmailService.name);
+  private transporter: nodemailer.Transporter;
 
-    return new Promise((resolve, reject) => {
-      const header = new smtpapi();
-      const headers = {
-        'x-smtpapi': header.jsonString()
-      };
-      const settings = {
-        host: 'smtp.sendgrid.net',
-        port: 587,
-        requiresAuth: true,
-        auth: {
-          user: 'apikey',
-          pass: EMAIL_SENDGRID_KEY,
-        },
-      };
-      const smtpTransport = nodemailer.createTransport(settings);
-      const mailOptionsNew = { ...msg, headers };
-      smtpTransport.sendMail(mailOptionsNew, (error, response) => {
-        smtpTransport.close();
-        if (error) {
-          Logger.error(error);
-          resolve(false);
-        } else {
-          resolve(true);
-        }
-      });
+  constructor(private configService: ConfigService) {
+    this.transporter = nodemailer.createTransport({
+      host: this.configService.get<string>('SMTP_HOST'),
+      port: this.configService.get<number>('SMTP_PORT', 587),
+      auth: {
+        user: this.configService.get<string>('SMTP_USER'),
+        pass: this.configService.get<string>('SMTP_PASS'),
+      },
     });
+  }
+
+  async sendMail(email: string, subject: string, html: string) {
+    try {
+      await this.transporter.sendMail({
+        from: '"Hệ thống VNA" <lehuuhuy211405@gmail.com>',
+        to: email,
+        subject,
+        html,
+      });
+      this.logger.log(`Email đã gửi thành công tới: ${email}`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Lỗi gửi email:`, error);
+      return false;
+    }
   }
 }
