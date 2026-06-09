@@ -1,33 +1,54 @@
-# compiled output
-/dist
-/node_modules
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build output
+dist/
+build/
+.next/
+out/
+coverage/
+.nyc_output/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
 
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 lerna-debug.log*
 
 # OS
 .DS_Store
-
-# Tests
-/coverage
-/.nyc_output
+Thumbs.db
 
 # IDEs and editors
-/.idea
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
 .project
 .classpath
 .c9/
 *.launch
 .settings/
-*.sublime-workspace
 
-# IDE - VSCode
-/.vscode
+# TypeScript / cache
+*.tsbuildinfo
 
-.env
-yarn.lock
+# Optional package manager cache
+.pnpm-store/
