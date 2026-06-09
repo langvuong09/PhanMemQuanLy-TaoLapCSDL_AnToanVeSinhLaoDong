@@ -5,7 +5,8 @@
 }
 
 input::-ms-reveal {
-    display: none !important; /* Hides the reveal button in Microsoft Edge */
+  display: none !important;
+  /* Hides the reveal button in Microsoft Edge */
 }
 
 button {
@@ -106,4 +107,21 @@ li.menu-active {
 
 .shadow-3drops {
   box-shadow: rgba(0, 0, 0, 0.16) 0px 1px 4px;
+}
+
+@keyframes slideOutDown {
+  from {
+    scale: 0;
+    opacity: 1;
+    transform: translateY(-20px);
+  }
+  to {
+    scale: 1;
+    opacity: 0;
+    transform: translateY(0);
+  }
+}
+
+.notification {
+  animation: slideOutDown 0.1s ease-out;
 }

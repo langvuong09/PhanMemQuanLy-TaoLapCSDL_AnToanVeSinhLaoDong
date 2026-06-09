@@ -1,5 +1,5 @@
 import { Base } from "./Base";
-import { AuthResponse } from "./types/auth";
+import { AuthData } from "./types/auth";
 
 export class Auth extends Base {
     constructor() {
@@ -10,18 +10,18 @@ export class Auth extends Base {
         });
     }
 
-    async Login(username: string, password: string): Promise<AuthResponse> {
-        const result = await this.execute<AuthResponse>({
+    async Login(username: string, password: string): Promise<AuthData> {
+        const result = await this.execute<AuthData>({
             url: "/login",
             method: "POST",
             data: { username: username, password: password }
         });
 
-        if (result && result.data) {
+        if (result?.data) {
             return result.data;
         }
 
-        throw Error("Thông tin đăng nhập không chính xác");
+        throw Error(result?.message || "Thông tin đăng nhập không chính xác");
     }
 
     async Logout(): Promise<void> {

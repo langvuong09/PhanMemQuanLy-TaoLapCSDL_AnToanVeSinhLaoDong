@@ -1,65 +1,74 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { Jwt } from '../api/types/jwt'
 import { parseAccessToken } from '../utils/jwt-parser'
 import { Auth } from '../api/Auth';
+import { useRouter } from 'next/navigation';
+import { NotificateContext } from '../contexts/notificate/notificate';
 
 export default function UserFooter() {
+  const router = useRouter();
+  const notificate = useContext(NotificateContext);
+
   const [user, setUser] = useState<Jwt | null>(null);
-  const [loading, setLoading] = useState(true);
 
   const [isClicked, setIsClicked] = useState<boolean>(false);
 
-  const handleLogout =  async () => {
+  const handleLogout = async () => {
     const auth = new Auth();
     await auth.Logout();
 
+    // Xóa token từ localStorage/sessionStorage
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("views");
+    sessionStorage.removeItem("accessToken");
+    sessionStorage.removeItem("refreshToken");
+    sessionStorage.removeItem("views");
+
+    // Xóa cookie
+    document.cookie = "accessToken=; path=/; max-age=0";
+
+    notificate?.showNotification({ type: "success", message: "Đăng xuất thành công." });
+    setTimeout(() => {
+      router.push("/login");
+    }, 100);
+  }
+
+  const decodeAccessToken = () => {
+    const accessToken = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+    if (accessToken) {
+      const parsed = parseAccessToken(accessToken);
+      setUser(parsed);
+    }
   }
 
   useEffect(() => {
-    try {
-      const accessToken = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken')
-      if (accessToken) {
-        const parsed = parseAccessToken(accessToken)
-        setUser(parsed)
-      }
-    } catch (error) {
-      console.error('Error parsing JWT:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="flex items-center gap-5 px-5">
-        <div className="w-10 h-10 rounded-full bg-gray-400 animate-pulse"></div>
-        <div className="flex-1 flex justify-between">
-          <div className="h-4 bg-gray-400 rounded w-20 animate-pulse"></div>
-        </div>
-      </div>
-    )
-  }
+    decodeAccessToken();
+  }, []);
 
   return (
     <div className="relative">
       {isClicked && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-[75%] bg-white py-2 rounded-xl mb-10">
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-[70%] bg-white py-2 rounded-xl mb-10">
           <ul className="space-y-2">
-            <li className="text-[16px] text-black font-semibold">
-              <button className="flex items-center gap-4 hover:bg-gray-200 w-full px-5 py-2">
+            <li className="text-[14px] text-black font-semibold">
+              <button className="flex items-center gap-4 hover:bg-gray-200 w-full px-5 py-2" onClick={() => router.push("/infomation")}>
                 <i className="fa-solid fa-user text-gray-500 text-2xl"></i>
                 <span>Thông tin tài khoản</span>
               </button>
             </li>
-            <li className="text-[16px] text-black font-semibold">
+            <li className="text-[14px] text-black font-semibold">
               <button className="flex items-center gap-4 hover:bg-gray-200 w-full px-5 py-2">
                 <i className="fa-solid fa-key text-gray-500 text-2xl"></i>
                 <span>Đổi mật khẩu</span>
               </button>
             </li>
-            <li className="text-[16px] text-black font-semibold">
+            <li className="text-[14px] text-black font-semibold" onClick={() => {
+              handleLogout();
+              setIsClicked(false);
+            }}>
               <button className="flex items-center gap-4 hover:bg-gray-200 w-full px-5 py-2">
                 <i className="fa-solid fa-arrow-right-from-bracket text-red-500 text-2xl"></i>
                 <span>Đăng xuất</span>

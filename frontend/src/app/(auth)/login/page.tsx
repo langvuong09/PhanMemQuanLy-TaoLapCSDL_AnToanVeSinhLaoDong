@@ -8,34 +8,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useContext, useState } from "react";
 import { Auth } from "@/src/api/Auth";
+import { AuthData } from "@/src/api/types/auth";
 import { NotificateContext } from "@/src/contexts/notificate/notificate";
-
-type ViewActivity = {
-  get: boolean;
-  roleId: number;
-}
-
-type View = {
-  id: number;
-  name: string;
-  activities: ViewActivity[];
-  url: string;
-  icon: string;
-  parentId: number | null;
-  doet_id: number | null;
-  order: number;
-  value: ViewActivity;
-}
-
-type LoginResponse = {
-  data?: {
-    token?: string;
-    views?: View[];
-  };
-  code: number;
-  message: string;
-  success: boolean;
-}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -51,27 +25,6 @@ export default function LoginPage() {
     return account.trim() !== "" && password.trim() !== "";
   }
 
-  const saveAuthData = (data: LoginResponse["data"]) => {
-    if (!data?.token) return;
-
-    const storage = rememberMe ? localStorage : sessionStorage;
-
-    storage.setItem("accessToken", data.token);
-    storage.setItem("views", JSON.stringify(data.views || []));
-  }
-
-  const handleLoginSuccess = (result: LoginResponse) => {
-    saveAuthData(result.data);
-
-    notificate?.showNotification({ type: "error", message: "Vui lòng điền đầy đủ thông tin" });
-
-
-    setAccount("");
-    setPassword("");
-
-    router.replace("/dashboard");
-  }
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -84,21 +37,36 @@ export default function LoginPage() {
 
     try {
       const auth = new Auth();
-      const result = await auth.Login(account, password) as LoginResponse;
+      const result = await auth.Login(account, password);
+      console.log(result)
 
-      const isValid =
-        result.success &&
-        result.code >= 200 &&
-        result.code < 300 &&
-        !!result.data?.token;
+      if (result) {
 
-      if (isValid) {
-        handleLoginSuccess(result);
+        const storage = rememberMe ? localStorage : sessionStorage;
+        storage.setItem("accessToken", result.token);
+        storage.setItem("refreshToken", result.refreshToken);
+        storage.setItem("views", JSON.stringify(result.views || []));
+
+        // Lưu token vào cookies để middleware có thể kiểm tra
+        document.cookie = `accessToken=${result.token}; path=/; max-age=${rememberMe ? 7 * 24 * 60 * 60 : undefined}`;
+
+        notificate?.showNotification({ type: "success", message: "Đăng nhập thành công." });
+
+        setAccount("");
+        setPassword("");
+
+        setTimeout(() => {
+          router.replace("/dashboard"); 
+        }, 200);
+
+        return;
       }
 
-    } catch (error: unknown) {
+      notificate?.showNotification({ type: "error", message: "Có lỗi xảy ra vui lòng thử lại sau." })
 
-      notificate?.showNotification({ type: "error", message: "Tài khoản hoặc mật khẩu không đúng. Xin vui lòng thử lại" });
+    } catch (error: any) {
+
+      notificate?.showNotification({ type: "error", message: error });
 
     } finally {
       setLoading(false);
