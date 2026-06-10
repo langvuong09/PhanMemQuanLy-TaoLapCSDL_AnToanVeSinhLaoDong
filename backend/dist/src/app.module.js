@@ -20,6 +20,7 @@ const domain_middleware_1 = require("./middleware/domain.middleware");
 const config_2 = require("./config");
 const redis_module_1 = require("./redis/redis.module");
 const email_module_1 = require("./helper/email.module");
+const user_module_1 = require("./modules/user/user.module");
 let AppModule = class AppModule {
     configure(consumer) {
         consumer.apply(domain_middleware_1.DomainMiddleware).forRoutes('*');
@@ -41,6 +42,7 @@ exports.AppModule = AppModule = __decorate([
             redis_module_1.RedisModule,
             auth_module_1.AuthModule,
             email_module_1.EmailModule,
+            user_module_1.UserModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

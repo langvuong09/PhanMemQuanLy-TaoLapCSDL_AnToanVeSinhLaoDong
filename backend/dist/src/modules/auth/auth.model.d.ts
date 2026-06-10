@@ -5,7 +5,7 @@ declare class role {
     constructor(role?: Partial<role>, keys?: string[]);
 }
 export declare class CurrentUser {
-    id?: string;
+    id: string;
     doet?: number | null;
     username?: string;
     fullname?: string;

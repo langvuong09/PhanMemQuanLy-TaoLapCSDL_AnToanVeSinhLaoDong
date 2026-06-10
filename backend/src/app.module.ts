@@ -15,6 +15,7 @@ import { DomainMiddleware } from './middleware/domain.middleware';
 import { dbOptions, load } from './config';
 import { RedisModule } from './redis/redis.module';
 import { EmailModule } from './helper/email.module';
+import { UserModule } from './modules/user/user.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { EmailModule } from './helper/email.module';
     RedisModule,
     AuthModule,
     EmailModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService],

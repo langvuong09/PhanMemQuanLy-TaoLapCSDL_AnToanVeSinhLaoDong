@@ -2,6 +2,7 @@ import { GetAllDto } from '../../commons';
 import { EntityManager, DataSource, Repository } from 'typeorm';
 import { CurrentUser } from '../auth/auth.model';
 import { User } from './user.entity';
+import { ChangePasswordDto } from './dto/change-password';
 export declare class UserService {
     private readonly dataSource;
     private readonly userRepository;
@@ -13,10 +14,12 @@ export declare class UserService {
     }>;
     import(currentUser: CurrentUser, users: any): Promise<any>;
     getAll(query: GetAllDto): Promise<import("../../commons").ResponseData<import("../../commons").List<unknown[]>>>;
-    recovery(user_id: any): Promise<{
+    recovery(user_id: string): Promise<{
         success: boolean;
     }>;
-    resetPassword(user_id: any): Promise<{
+    resetPassword(user_id: string, changePasswordDto: ChangePasswordDto): Promise<{
+        code: import("@nestjs/common").HttpStatus;
+        message: string;
         success: boolean;
     }>;
     get(query: {

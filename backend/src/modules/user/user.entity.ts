@@ -4,7 +4,7 @@ import * as argon from "argon2";
 
 @Entity(`users`)
 export class User {
-    @PrimaryGeneratedColumn("uuid")
+  @PrimaryGeneratedColumn("uuid")
   id!: string;
 
   @Column("varchar", { unique: true })

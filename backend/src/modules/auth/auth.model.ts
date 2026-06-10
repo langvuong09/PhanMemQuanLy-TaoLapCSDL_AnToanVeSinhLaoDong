@@ -12,7 +12,7 @@ class role {
 }
 
 export class CurrentUser {
-  id?: string;
+  id!: string;
   doet?: number | null;
   username?: string;
   fullname?: string;

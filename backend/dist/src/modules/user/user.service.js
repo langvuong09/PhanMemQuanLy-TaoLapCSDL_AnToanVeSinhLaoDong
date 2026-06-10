@@ -183,14 +183,26 @@ let UserService = class UserService {
             success: true,
         };
     }
-    async resetPassword(user_id) {
-        const _newPassword = await argon.hash('12345678');
-        await this.manager.query(`update users
-              set password = '${_newPassword}'
-              where id = '${user_id}'`);
-        return {
-            success: true,
-        };
+    async resetPassword(user_id, changePasswordDto) {
+        const user = await this.manager.findOne(user_entity_1.User, {
+            where: { id: user_id },
+            select: {
+                id: true,
+                password: true,
+            },
+        });
+        if (!user) {
+            throw new common_1.NotFoundException('Không tìm thấy người dùng');
+        }
+        const isMatch = await argon.verify(user.password, changePasswordDto.oldPassword);
+        if (!isMatch) {
+            throw new common_1.BadRequestException('Mật khẩu cũ không chính xác');
+        }
+        const hashedPassword = await argon.hash(changePasswordDto.newPassword);
+        await this.manager.update(user_entity_1.User, user_id, {
+            password: hashedPassword,
+        });
+        return response_1.default.SUCCESSFULLY;
     }
     async get(query) {
         try {

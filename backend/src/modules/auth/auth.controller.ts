@@ -32,7 +32,7 @@ export class AuthController {
     private configService: ConfigService,
   ) {}
 
-  // Sửa hàm login trong AuthController
+
   @Post('login')
   @UseGuards(LocalAuthGuard)
   @UseInterceptors(ClassSerializerInterceptor)

@@ -8,35 +8,31 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthGuard = void 0;
 const common_1 = require("@nestjs/common");
 const auth_service_1 = require("../../modules/auth/auth.service");
-const response_1 = __importDefault(require("../../modules/response"));
 let AuthGuard = class AuthGuard {
     authService;
     constructor(authService) {
         this.authService = authService;
     }
     async canActivate(context) {
+        const req = context.switchToHttp().getRequest();
+        const authHeader = req.headers['authorization'];
+        common_1.Logger.debug(`Authorization header: ${authHeader}`);
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            throw new common_1.UnauthorizedException('Missing or invalid Authorization header');
+        }
+        const jwt = authHeader.split(' ')[1];
         try {
-            const req = context.switchToHttp().getRequest();
-            const jwt = req.headers['authorization']?.split(' ')[1];
-            if (!jwt) {
-                throw response_1.default.errorBad(response_1.default.WRONG_TOKEN);
-            }
             const rs = await this.authService.validateToken(jwt, req.doet);
-            common_1.Logger.debug(`Method=${req.method} --- Url: ${req.url} - User: ${rs.data?.user?.username}`);
-            if (false) {
-            }
             Object.assign(req, rs.data);
+            common_1.Logger.debug(`User authenticated: ${rs.data?.user?.username}`);
             return true;
         }
         catch (error) {
-            throw response_1.default.errorInternal(error);
+            throw new common_1.UnauthorizedException('Token is invalid or expired');
         }
     }
 };

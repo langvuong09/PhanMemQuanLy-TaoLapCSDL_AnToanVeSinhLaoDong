@@ -50,7 +50,14 @@ async function bootstrap() {
     app.setGlobalPrefix('api/v1');
     app.enableCors({
         origin: '*',
-        methods: ['GET', 'PUT', 'POST', 'PATCH', 'DELETE'],
+        methods: ['GET', 'PUT', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: [
+            'Content-Type',
+            'Authorization',
+            'X-Requested-With',
+            'Accept',
+        ],
+        credentials: true,
     });
     const config = new swagger_1.DocumentBuilder()
         .addBearerAuth({ in: 'header', type: 'http', bearerFormat: 'JWT' })
