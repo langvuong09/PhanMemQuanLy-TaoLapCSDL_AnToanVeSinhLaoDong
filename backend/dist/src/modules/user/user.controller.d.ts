@@ -1,5 +1,7 @@
 import { UserService } from "./user.service";
 import { GetAllDto } from "../../commons";
+import { CurrentUser } from "../auth/auth.model";
+import { ChangePasswordDto } from "./dto/change-password";
 export declare class UserController {
     private readonly userService;
     constructor(userService: UserService);
@@ -16,7 +18,7 @@ export declare class UserController {
     recovery(user_id: string): Promise<{
         success: boolean;
     }>;
-    resetPassword(id: string): Promise<{
+    resetPassword(currentUser: CurrentUser, changePasswordDto: ChangePasswordDto): Promise<{
         success: boolean;
     }>;
 }

@@ -20,8 +20,11 @@ const common_1 = require("@nestjs/common");
 const user_service_1 = require("./user.service");
 const authGuard_1 = require("../../commons/guards/authGuard");
 const response_interceptor_1 = __importDefault(require("../../interceptors/response.interceptor"));
-const swagger_1 = require("@nestjs/swagger");
 const commons_1 = require("../../commons");
+const user_decorator_1 = require("../../commons/guards/user.decorator");
+const auth_model_1 = require("../auth/auth.model");
+const change_password_1 = require("./dto/change-password");
+const swagger_1 = require("@nestjs/swagger");
 let UserController = class UserController {
     userService;
     constructor(userService) {
@@ -39,8 +42,8 @@ let UserController = class UserController {
     async recovery(user_id) {
         return await this.userService.recovery(user_id);
     }
-    async resetPassword(id) {
-        return await this.userService.resetPassword(id);
+    async resetPassword(currentUser, changePasswordDto) {
+        return await this.userService.resetPassword(currentUser.id, changePasswordDto);
     }
 };
 exports.UserController = UserController;
@@ -80,17 +83,21 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], UserController.prototype, "recovery", null);
 __decorate([
-    (0, common_1.Get)(":id/reset-password"),
+    (0, common_1.Post)("reset-password"),
+    (0, swagger_1.ApiBody)({ type: change_password_1.ChangePasswordDto }),
     (0, swagger_1.ApiOperation)({ summary: "reset password account" }),
-    __param(0, (0, common_1.Param)("id")),
+    __param(0, (0, user_decorator_1.GetUser)()),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [String]),
+    __metadata("design:paramtypes", [auth_model_1.CurrentUser,
+        change_password_1.ChangePasswordDto]),
     __metadata("design:returntype", Promise)
 ], UserController.prototype, "resetPassword", null);
 exports.UserController = UserController = __decorate([
     (0, swagger_1.ApiTags)("Users"),
     (0, common_1.Controller)("users"),
     (0, common_1.UseGuards)(authGuard_1.AuthGuard),
+    (0, swagger_1.ApiBearerAuth)(),
     __metadata("design:paramtypes", [user_service_1.UserService])
 ], UserController);
 //# sourceMappingURL=user.controller.js.map

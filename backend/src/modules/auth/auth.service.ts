@@ -44,6 +44,11 @@ export class AuthService {
     const accessToken = this.jwtService.sign(userPayload, {
       expiresIn: accessTtl,
     } as JwtSignOptions);
+    // const refreshSecret =
+    //   this.configService.get<string>('JWT_REFRESH_SECRET');
+    // if (!refreshSecret) {
+    //   throw new Error('JWT_REFRESH_SECRET is not defined in .env');
+    // }
     const refreshToken = this.jwtService.sign({ id: user.id }, {
       secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
       expiresIn: refreshTtl,

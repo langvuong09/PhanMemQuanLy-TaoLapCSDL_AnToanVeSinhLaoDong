@@ -3,12 +3,16 @@ import { User } from "./user.entity";
 import { UserService } from "./user.service";
 import { AuthGuard } from "../../commons/guards/authGuard";
 import ResponseInterceptor from "src/interceptors/response.interceptor";
-import { ApiOperation, ApiTags } from "@nestjs/swagger";
 import { GetAllDto } from "src/commons";
+import { GetUser } from "src/commons/guards/user.decorator";
+import { CurrentUser } from "../auth/auth.model";
+import { ChangePasswordDto } from "./dto/change-password";
+import { ApiBody, ApiOperation, ApiTags,ApiBearerAuth } from '@nestjs/swagger';
 
 @ApiTags("Users")
 @Controller("users")
 @UseGuards(AuthGuard)
+@ApiBearerAuth()
 export class UserController {
   constructor(private readonly userService: UserService) {
   }
@@ -46,11 +50,13 @@ export class UserController {
     return await this.userService.recovery(user_id);
   }
 
-  @Get(":id/reset-password")
+  @Post("reset-password")
+  @ApiBody({ type: ChangePasswordDto })
   @ApiOperation({ summary: "reset password account" })
   async resetPassword(
-    @Param("id") id: string
+    @GetUser() currentUser: CurrentUser,
+    @Body() changePasswordDto: ChangePasswordDto
   ): Promise<{ success: boolean }> {
-    return await this.userService.resetPassword(id);
+    return await this.userService.resetPassword(currentUser.id , changePasswordDto);
   }
 }

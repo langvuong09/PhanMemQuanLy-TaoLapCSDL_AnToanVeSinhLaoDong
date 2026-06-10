@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { GetAllDto } from '../../commons';
 import Response from '../../commons/response';
@@ -6,6 +10,7 @@ import { EntityManager, DataSource, ILike, In, Not, Repository } from 'typeorm';
 import { CurrentUser } from '../auth/auth.model';
 import { User } from './user.entity';
 import * as argon from 'argon2';
+import { ChangePasswordDto } from './dto/change-password';
 
 @Injectable()
 export class UserService {
@@ -136,7 +141,7 @@ export class UserService {
     }
   }
 
-  async recovery(user_id) {
+  async recovery(user_id: string) {
     await this.manager.query(`update users
                               set "deletedBy" = NULL,
                                   "deletedAt" = null
@@ -146,14 +151,32 @@ export class UserService {
     };
   }
 
-  async resetPassword(user_id) {
-    const _newPassword = await argon.hash('12345678');
-    await this.manager.query(`update users
-              set password = '${_newPassword}'
-              where id = '${user_id}'`);
-    return {
-      success: true,
-    };
+  async resetPassword(user_id: string, changePasswordDto: ChangePasswordDto) {
+    const user = await this.manager.findOne(User, {
+      where: { id: user_id },
+      select: {
+        id: true,
+        password: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+    const isMatch = await argon.verify(
+      user.password,
+      changePasswordDto.oldPassword,
+    );
+
+    if (!isMatch) {
+      throw new BadRequestException('Mật khẩu cũ không chính xác');
+    }
+
+    const hashedPassword = await argon.hash(changePasswordDto.newPassword);
+    await this.manager.update(User, user_id, {
+      password: hashedPassword,
+    });
+    return Response.SUCCESSFULLY;
   }
 
   async get(query: { where: string; relation?: string }) {
