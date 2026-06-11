@@ -1,16 +1,29 @@
 type TopHeroProps = {
-    lable: string;
+    title?: string;
+    actions?: React.ReactNode;
+    className?: string;
+
+    /** @deprecated Use `title` instead */
+    lable?: string;
+    /** @deprecated Use `actions` instead */
     component?: React.ReactNode;
 }
 
-const TopHero: React.FC<TopHeroProps> = (props: TopHeroProps) => {
+const TopHero: React.FC<TopHeroProps> = ({
+    title,
+    actions,
+    className,
+    lable,
+    component,
+}: TopHeroProps) => {
+    const displayTitle = title || lable || '';
+    const displayActions = actions || component;
+
     return (
-        <div className={`bg-white top-hero px-5 py-3 text-lg font-semibold rounded-b-lg ${props.component && "flex items-center justify-between"}`}>
-            <h1>{props.lable}</h1>
-            {props.component && (
-                <>
-                    {props.component}
-                </>
+        <div className={`bg-white px-5 py-3 rounded-lg border border-gray-100 shadow-sm flex items-center justify-between ${className || ''}`}>
+            <h1 className="text-base font-bold text-gray-800">{displayTitle}</h1>
+            {displayActions && (
+                <>{displayActions}</>
             )}
         </div>
     )

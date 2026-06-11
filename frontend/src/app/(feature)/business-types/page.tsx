@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import TopHero from '@/src/components/TopHero'
 import ToggleSwitch from '@/src/components/ToggleSwitch'
 import BusinessTypeModal from '@/src/components/modals/BusinessTypeModal'
 import { BusinessType, businessTypesMock } from '@/src/mocks/business-types'
 
-const GRID_COLS = 'grid-cols-[40px_80px_120px_1fr_140px]'
+const GRID_COLS = 'grid-cols-[40px_40px_120px_1fr_140px]'
 
 export default function BusinessTypesPage() {
   const [data, setData] = useState<BusinessType[]>(businessTypesMock)
@@ -110,12 +111,10 @@ export default function BusinessTypesPage() {
 
   return (
     <main className="h-screen flex flex-col py-2">
-      {/* Container */}
-      <div className="bg-white rounded-lg shadow-3drops flex flex-col flex-1 min-h-0 overflow-hidden">
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 shrink-0 bg-white rounded-lg border border-gray-100 shadow-md">
-          <h1 className="text-base font-bold text-gray-800">Danh sách loại hình kinh doanh</h1>
+      {/* TopHero */}
+      <TopHero
+        title="Danh sách loại hình kinh doanh"
+        actions={
           <div className="flex gap-2">
             <button
               type="button"
@@ -133,14 +132,19 @@ export default function BusinessTypesPage() {
               <span>Thêm mới</span>
             </button>
           </div>
-        </div>
+        }
+        className="shrink-0"
+      />
+
+      {/* Table Container */}
+      <div className="bg-white rounded-lg border border-gray-100 shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden mt-2">
 
         {/* Table Search / Filter Header */}
-        <div className="shrink-0 border border-gray-200">
+        <div className="shrink-0 border-b border-gray-200">
           {/* Column titles */}
           <div className={`grid ${GRID_COLS} text-xs text-gray-500 font-medium`}>
             <div />
-            <div className='px-3 py-2 text-center'>Thao tác</div>
+            <div />
             <div className="px-3 py-2">Mã loại hình</div>
             <div className="px-3 py-2">Tên loại hình</div>
             <div className="px-3 py-2 text-center">Trạng thái</div>
