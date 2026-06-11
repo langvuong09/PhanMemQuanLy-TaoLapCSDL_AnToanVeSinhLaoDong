@@ -124,7 +124,6 @@ const ChangePassword = ({
                         </button>
                         <button
                             type="submit"
-                            className="rounded-xl bg-[#4f46e5] px-5 py-2 text-sm font-semibold text-white hover:bg-[#4338ca] disabled:cursor-not-allowed disabled:opacity-70"
                             disabled={isLoading}
                         >
                             {isLoading ? "Đang lưu..." : "Lưu"}
