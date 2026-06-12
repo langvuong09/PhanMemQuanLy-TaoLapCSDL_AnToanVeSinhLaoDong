@@ -6,9 +6,10 @@ import { DoetService } from './doet.service';
 import { MediaModule } from '../media/media.module';
 import { User } from '../user/user.entity';
 import { Role } from '../role/role.entity';
+import { PermissionModule } from 'src/modules/permission/permission.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Doet, User, Role]),MediaModule],
+  imports: [TypeOrmModule.forFeature([Doet, User, Role]), MediaModule, PermissionModule],
   providers: [DoetService],
   controllers: [DoetController],
 })
