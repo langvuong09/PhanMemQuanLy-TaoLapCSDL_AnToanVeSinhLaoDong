@@ -11,7 +11,6 @@ import { CurrentUser, LoginModel } from './auth.model';
 import { get } from 'lodash';
 import { User } from '../user/user.entity';
 import { DataSource } from 'typeorm';
-import { extractHostname } from '../../helper/Domain';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as argon from 'argon2';

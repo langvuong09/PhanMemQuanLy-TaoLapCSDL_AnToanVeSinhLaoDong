@@ -20,7 +20,7 @@ async function runSqlScript(dataSource: DataSource, filePath: string) {
       await dataSource.query(statement);
     } catch (err: any) {
       // Nếu lỗi là do trùng lặp (ON CONFLICT), ta có thể bỏ qua log lỗi này
-      Logger.debug(`Skipping statement: ${err.message}`);
+      Logger.warn(`SQL Error in ${filePath}: ${err.message}`);
     }
   }
   Logger.log(`Finished: ${filePath}`);

@@ -1,6 +1,6 @@
 import { Strategy } from "passport-local";
 import { PassportStrategy } from "@nestjs/passport";
-import { Injectable, UnauthorizedException, BadRequestException, NotFoundException, NotAcceptableException } from "@nestjs/common";
+import { Injectable, UnauthorizedException, NotFoundException, NotAcceptableException } from "@nestjs/common";
 import { UserService } from "src/modules/user/user.service";
 import { get } from "lodash";
 import * as argon from "argon2";
@@ -20,7 +20,7 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
   ): Promise<any> {
     const _where: any = { username: username };
     if (request.doet?.id) {
-      _where.doet_id = request.doet.id;
+      _where.doetId = request.doet.id;
     }
 
     const { data } = await this.userService.get({
@@ -29,7 +29,8 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
     });
 
     const user = get(data, "items[0]");
-    if (!user) {
+
+    if (!user || user.deletedAt) {
       throw new NotFoundException({ code: 3033, message: 'Account not found' });
     }
     

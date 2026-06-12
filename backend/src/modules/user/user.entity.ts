@@ -4,6 +4,7 @@ import { Doet } from "../doet/doet.entity";
 import * as argon from "argon2";
 import { FileEntity } from "../media/media.entity";
 import { BaseAddressEntity } from "src/commons/bases/baseAddressEntity";
+import { Exclude } from "class-transformer";
 
 @Entity("users")
 export class User extends BaseAddressEntity {
@@ -11,9 +12,13 @@ export class User extends BaseAddressEntity {
 
   @Column("varchar", { unique: true }) username!: string;
 
+  @Exclude()
   @Column("varchar") password!: string;
 
   @Column({ nullable: true }) fullName!: string;
+  @Column({ nullable: true }) gender!: string;
+  @Column({ nullable: true }) position!: string;
+
 
   @Column({ nullable: true, unique: true }) email!: string;
 

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, MinLength } from 'class-validator';
+import { IsNotEmpty, Matches, MinLength } from 'class-validator';
 
 export class ChangePasswordDto {
   @ApiProperty({ example: 'OldPassword123!' })
@@ -7,11 +7,20 @@ export class ChangePasswordDto {
   oldPassword!: string;
 
   @ApiProperty({ example: 'NewPassword123!' })
-  @IsNotEmpty({ message: 'Mật khẩu mới không được để trống' })
-  @MinLength(8, { message: 'Mật khẩu phải có tối thiểu 8 ký tự' })
+  @IsNotEmpty({ message: 'Mật khẩu là bắt buộc' })
+  @MinLength(8, { message: 'Mật khẩu phải có ít nhất 8 ký tự' })
+  @Matches(
+    /((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/, 
+    { message: 'Mật khẩu phải bao gồm: chữ hoa, chữ thường, số hoặc ký tự đặc biệt' }
+  )
   newPassword!: string;
 
-  @ApiProperty({ example: 'NewPassword123!' })
-  @IsNotEmpty({ message: 'Vui lòng xác nhận mật khẩu' })
+  @ApiProperty({ example: 'ConfirmPassword123!' })
+  @IsNotEmpty({ message: 'Mật khẩu là bắt buộc' })
+  @MinLength(8, { message: 'Mật khẩu phải có ít nhất 8 ký tự' })
+  @Matches(
+    /((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/, 
+    { message: 'Mật khẩu phải bao gồm: chữ hoa, chữ thường, số hoặc ký tự đặc biệt' }
+  )
   confirmPassword!: string;
 }

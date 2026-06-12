@@ -8,10 +8,14 @@ import * as path from 'path';
 import * as AWS from 'aws-sdk';
 import { AuthGuard } from 'src/commons/guards/authGuard';
 import { AuthModule } from '../auth/auth.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { FileEntity } from './media.entity';
 
 @Module({
   imports: [
     AuthModule,
+    TypeOrmModule.forFeature([FileEntity]),
+    ConfigModule
   ],
   controllers: [MediaController],
   providers: [MediaService, AuthGuard],

@@ -1,45 +1,59 @@
-import {
-  ClassSerializerInterceptor,
-  Controller,
-  Get,
-  Post,
-  Query,
-  UploadedFile,
-  UseGuards,
-  UseInterceptors,
-} from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { AuthGuard } from 'src/commons/guards/authGuard';
-import { FileUploadDto, UploadResponse } from './media.model';
-import { MediaService } from './media.service';
-import ResponseInterceptor from 'src/interceptors/response.interceptor';
-import { ResponseData } from 'src/commons/response';
-@ApiTags('Media')
-@Controller('common/media')
+import { 
+  Controller, 
+  Post, 
+  Delete, 
+  Get, 
+  Param, 
+  UploadedFile, 
+  UseInterceptors, 
+  Body, 
+  ParseUUIDPipe 
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
+import { MediaService } from "./media.service";
+import { FileType } from "./media.model";
+import Response from 'src/commons/response'; // Điều chỉnh đường dẫn theo dự án của bạn
+import { ApiConsumes } from "@nestjs/swagger";
+import { ApiBody } from "@nestjs/swagger";
+
+@Controller('media')
 export class MediaController {
   constructor(private readonly mediaService: MediaService) {}
 
   @Post('upload')
-  @UseGuards(AuthGuard)
-  @UseInterceptors(ResponseInterceptor, ClassSerializerInterceptor)
   @UseInterceptors(FileInterceptor('file'))
-  @ApiOperation({ summary: 'Upload file' })
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    type: FileUploadDto,
+  @ApiConsumes('multipart/form-data') 
+  @ApiBody({ 
+    schema: {
+      type: 'object',
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        fileType: { 
+          type: 'string', 
+          enum: Object.values(FileType),
+          description: 'Loại file (GPKD, AVATAR, REPORT_ATTACHMENT, OTHER)' 
+        },
+        doetId: { type: 'number' , nullable: true },
+      },
+    },
   })
   async uploadFile(
-    @UploadedFile() file,
-  ): Promise<ResponseData<UploadResponse>> {
-    return this.mediaService.uploadFile(file);
+    @UploadedFile() file: Express.Multer.File,
+    @Body('fileType') fileType: FileType,
+    @Body('doetId') doetId?: number,
+  ) {
+    const data = await this.mediaService.uploadFile(file, fileType, doetId);
+    return Response.get(data);
   }
 
-  @Get('url')
-  @UseGuards(AuthGuard)
-  @UseInterceptors(ResponseInterceptor, ClassSerializerInterceptor)
-  @ApiOperation({ summary: 'Generate public url' })
-  async downloadFile(@Query('key') key: string): Promise<any> {
-    return await this.mediaService.generateUrl(key);
+  @Get(':id/download')
+  async getDownloadUrl(@Param('id', ParseUUIDPipe) id: string) {
+    const url = await this.mediaService.getDownloadUrl(id);
+    return Response.get({ url });
+  }
+
+  @Delete(':id')
+  async deleteFile(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.mediaService.deleteFile(id);
   }
 }

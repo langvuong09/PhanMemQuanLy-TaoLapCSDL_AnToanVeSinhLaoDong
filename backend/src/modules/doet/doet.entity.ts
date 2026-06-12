@@ -1,5 +1,5 @@
 import { BaseAddressEntity } from "src/commons/bases/baseAddressEntity";
-import { Column, Entity, ManyToOne, JoinColumn, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, ManyToOne, JoinColumn, OneToMany, PrimaryGeneratedColumn, DeleteDateColumn } from "typeorm";
 import { FileEntity } from "../media/media.entity";
 import { BusinessType } from "../bussinessType/business-type.entity";
 import { Industry } from "../industry/industry.entity";
@@ -12,6 +12,7 @@ export class Doet extends BaseAddressEntity {
   @Column() name!: string;
   @Column({ unique: true }) taxCode!: string; 
   @Column() issuedDate!: Date;
+  @Column({ default: true }) status!: boolean;
 
   @Column() businessTypeId!: number;
   
@@ -34,4 +35,5 @@ export class Doet extends BaseAddressEntity {
 
   @OneToMany(() => Report, (report) => report.doet)
   reports!: Report[];
+
 }
