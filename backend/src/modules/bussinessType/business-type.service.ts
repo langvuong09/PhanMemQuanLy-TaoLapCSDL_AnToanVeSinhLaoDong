@@ -12,8 +12,8 @@ export class BusinessTypeService {
   ) {}
 
   async create(dto: { code: string; name: string; isActive?: boolean }) {
-    const isCodeExist = await this.businessTypeRepository.findOneBy({ 
-      code: dto.code.trim() 
+    const isCodeExist = await this.businessTypeRepository.findOne({ 
+      where: { code: dto.code.trim() }
     });
     
     if (isCodeExist) {

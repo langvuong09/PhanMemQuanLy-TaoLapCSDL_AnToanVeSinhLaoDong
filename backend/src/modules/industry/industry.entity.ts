@@ -1,6 +1,7 @@
-import { Column, DeleteDateColumn, Entity, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Column, DeleteDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity("industries")
+@Index("UQ_INDUSTRY_CODE_ACTIVE", ["code"], { unique: true, where: '"deletedAt" IS NULL' })
 export class Industry {
   @PrimaryGeneratedColumn("increment") id!: number;
 

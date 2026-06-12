@@ -1,16 +1,17 @@
 import { BaseAddressEntity } from "src/commons/bases/baseAddressEntity";
-import { Column, Entity, ManyToOne, JoinColumn, OneToMany, PrimaryGeneratedColumn, DeleteDateColumn } from "typeorm";
+import { Column, Entity, ManyToOne, JoinColumn, OneToMany, PrimaryGeneratedColumn, DeleteDateColumn, Index } from "typeorm";
 import { FileEntity } from "../media/media.entity";
 import { BusinessType } from "../bussinessType/business-type.entity";
 import { Industry } from "../industry/industry.entity";
 import { Report } from "../report/report.entity";
 
 @Entity("doets")
+@Index("UQ_DOET_TAXCODE_ACTIVE", ["taxCode"], { unique: true, where: '"deletedAt" IS NULL' })
 export class Doet extends BaseAddressEntity {
   @PrimaryGeneratedColumn("increment") id!: number;
 
   @Column() name!: string;
-  @Column({ unique: true }) taxCode!: string; 
+  @Column() taxCode!: string; 
   @Column() issuedDate!: Date;
   @Column({ default: true }) status!: boolean;
 

@@ -4,7 +4,6 @@ import {
   ArgumentsHost,
   HttpException,
   HttpStatus,
-  Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
 
@@ -20,12 +19,34 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
-      const res: any = exception.getResponse();
+      code = status;
+      const errorResponse: any = exception.getResponse();
       
-      message = typeof res === 'object' && res !== null ? (res.message || res) : res;
-      code = status; 
-    } else if (exception instanceof Error) {
-      message = exception.message;
+      if (typeof errorResponse === 'object' && errorResponse !== null) {
+        if (Array.isArray(errorResponse.message)) {
+          message = errorResponse.message[0]; 
+        } else {
+          message = errorResponse.message || errorResponse.error || JSON.stringify(errorResponse);
+        }
+      } else {
+        message = errorResponse;
+      }
+    } 
+    else if (exception instanceof Error) {
+      const dbError = exception as any;
+
+      if (dbError.code === '23505') {
+        status = HttpStatus.BAD_REQUEST;
+        code = 400;
+        
+        if (dbError.detail?.includes('taxCode') || dbError.detail?.includes('username')) {
+          message = 'Mã số thuế hoặc tài khoản đăng nhập này đã tồn tại trên hệ thống!';
+        } else {
+          message = 'Dữ liệu nhập vào bị trùng lặp, vui lòng kiểm tra lại!';
+        }
+      } else {
+        message = exception.message;
+      }
     }
 
     response.status(status).json({
