@@ -14,7 +14,9 @@ export class IndustryService {
   ) {}
 
   async create(dto: CreateIndustryDto) {
-    const isCodeExist = await this.industryRepository.findOneBy({ code: dto.code.trim() });
+    const isCodeExist = await this.industryRepository.findOne({
+      where: { code: dto.code.trim() }
+    });
     if (isCodeExist) {
       throw new BadRequestException('Mã ngành nghề này đã tồn tại!');
     }

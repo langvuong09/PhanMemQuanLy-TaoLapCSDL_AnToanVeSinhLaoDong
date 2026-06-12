@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, InternalServerErrorException, BadRequestException } from "@nestjs/common";
-import Response from 'src/commons/response'; // Giả định đường dẫn của bạn
+import Response from 'src/commons/response'; 
 import { v2 as cloudinary } from 'cloudinary';
 import * as streamifier from 'streamifier';
 import { InjectRepository } from "@nestjs/typeorm";
@@ -28,7 +28,6 @@ export class MediaService {
       throw new BadRequestException('File quá lớn! Vui lòng chọn file nhỏ hơn 10MB.');
     }
 
-    
     const documentMimetypes = [
       'application/pdf', 
       'application/msword', 
@@ -55,6 +54,10 @@ export class MediaService {
             url: result.secure_url,
             secureUrl: result.secure_url,
             publicId: result.public_id,
+            format: result.format, // pdf, png, docx...
+            type: result.resource_type, // Lưu giá trị 'raw' hoặc 'image' từ Cloudinary
+            width: result.width,
+            height: result.height,
             fileType: fileType,
             doetId: parsedDoetId ?? undefined, 
           });
@@ -78,17 +81,35 @@ export class MediaService {
   async getDownloadUrl(id: string) {
     const file = await this.fileRepository.findOneBy({ id });
     if (!file) throw new NotFoundException("File không tồn tại");
-    return cloudinary.url(file.publicId, { flags: 'attachment' });
+    
+    const resourceType = file.type || 'image';
+    return cloudinary.url(file.publicId, { flags: 'attachment', resource_type: resourceType });
   }
 
   async deleteFile(id: string) {
     const file = await this.fileRepository.findOneBy({ id });
     if (!file) throw new NotFoundException("File không tồn tại");
 
-    await cloudinary.uploader.destroy(file.publicId);
-    
-    await this.fileRepository.delete(id);
-    
-    return Response.get({ message: "Xóa file thành công" });
+    try {
+      const resourceType = file.type || 'image';
+
+      const cloudinaryResult = await cloudinary.uploader.destroy(file.publicId, {
+        resource_type: resourceType,
+        invalidate: true 
+      });
+
+      if (cloudinaryResult.result !== 'ok' && cloudinaryResult.result !== 'not_found') {
+        throw new InternalServerErrorException(`Không thể xóa file vật lý trên Cloudinary: ${cloudinaryResult.result}`);
+      }
+
+      await this.fileRepository.delete(id);
+      
+      return Response.get({ message: "Xóa file thành công" });
+    } catch (error: any) {
+      if (error instanceof NotFoundException || error instanceof InternalServerErrorException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(`Lỗi hệ thống khi xóa file: ${error.message}`);
+    }
   }
 }
