@@ -30,6 +30,7 @@ frontend/.env.*
 
 backend/node_modules
 backend/.env
+backend/dist
 
 # Logs
 logs/

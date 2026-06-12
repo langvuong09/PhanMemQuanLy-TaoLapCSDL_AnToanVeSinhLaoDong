@@ -4,13 +4,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { GetAllDto } from '../../commons';
 import Response from '../../commons/response';
-import { EntityManager, DataSource, ILike, In, Not, Repository } from 'typeorm';
-import { CurrentUser } from '../auth/auth.model';
+import { EntityManager, DataSource, Not, Repository, In } from 'typeorm';
 import { User } from './user.entity';
 import * as argon from 'argon2';
 import { ChangePasswordDto } from './dto/change-password';
+import { UpdateProfileDto } from './dto/update-profile';
 
 @Injectable()
 export class UserService {
@@ -24,141 +23,12 @@ export class UserService {
     this.manager = this.dataSource.createEntityManager();
   }
 
-  async checkUsername(
-    username: string,
-  ): Promise<{ username: string; existed: boolean }> {
-    try {
-      const foundedUser = await this.userRepository.findOne({
-        where: {
-          username,
-        },
-      });
-      const result = !!foundedUser;
-      return {
-        username,
-        existed: result,
-      };
-    } catch (error) {
-      throw Response.errorInternal(error);
-    }
-  }
-
-  async import(currentUser: CurrentUser, users: any): Promise<any> {
-    try {
-      let result: {
-        success: number;
-        err: number;
-        username: string[];
-      } = {
-        success: 0,
-        err: 0,
-        username: [],
-      };
-      for (const user of users) {
-        const existed = await this.checkUsername(user.username);
-        if (existed.existed) {
-          result.err += 1;
-          result.username.push(user.username);
-        } else {
-          await this.userRepository.save(
-            Object.assign(new User(), {
-              ...user,
-              password: user.password,
-              createdBy: currentUser.id,
-              createdAt: new Date(),
-            }),
-          );
-          result.success += 1;
-        }
-      }
-      return result;
-    } catch (error) {
-      throw Response.errorInternal(error);
-    }
-  }
-
-  async getAll(query: GetAllDto) {
-    try {
-      let { pageSize, pageNumber, order } = query;
-
-      const select = (query.select && JSON.parse(query.select)) || null;
-
-      let relations: any =
-        (query.relation && JSON.parse(query.relation)) || null;
-      if (Array.isArray(relations)) {
-        relations = relations.reduce((acc, curr) => {
-          acc[curr] = true;
-          return acc;
-        }, {});
-      }
-
-      const province = (query.province && JSON.parse(query.province)) || null;
-
-      const where = (query.where && JSON.parse(query.where)) || {};
-      if (where instanceof Array) {
-        for (const item of where) {
-          Object.keys(item).forEach((key) => {
-            if (item[key].operation === 'like') {
-              item[key] = ILike(item[key].value);
-            } else if (item[key].operation === 'in') {
-              item[key] = In(item[key].value);
-            } else if (item[key].operation === 'notIn') {
-              item[key] = Not(In(item[key].value));
-            }
-          });
-        }
-      } else {
-        Object.keys(where).forEach((key) => {
-          if (where[key].operation === 'like') {
-            where[key] = ILike(where[key].value);
-          } else if (where[key].operation === 'in') {
-            where[key] = In(where[key].value);
-          } else if (where[key].operation === 'notIn') {
-            where[key] = Not(In(where[key].value));
-          }
-        });
-      }
-      let [items, count] = await this.userRepository.findAndCount({
-        where,
-        relations,
-        select,
-        order: { ...JSON.parse(order || '{}') },
-        skip: pageNumber,
-        take: pageSize,
-        withDeleted: true,
-      });
-      if (!!province) {
-        items = items.filter((x) => x.province?.key === province.key);
-      }
-      return Response.getList({
-        items: items as any,
-        count,
-        pageSize: +pageSize!,
-        pageNumber: +pageNumber!,
-      });
-    } catch (error) {
-      throw Response.errorInternal(error);
-    }
-  }
-
-  async recovery(user_id: string) {
-    await this.manager.query(`update users
-                              set "deletedBy" = NULL,
-                                  "deletedAt" = null
-                              where id = '${user_id}'`);
-    return {
-      success: true,
-    };
-  }
-
-  async resetPassword(user_id: string, changePasswordDto: ChangePasswordDto) {
-    const user = await this.manager.findOne(User, {
-      where: { id: user_id },
-      select: {
-        id: true,
-        password: true,
-      },
-    });
+  async resetPassword(userId: string, changePasswordDto: ChangePasswordDto) {
+    const user = await this.userRepository.createQueryBuilder('user')
+      .where('user.id = :userId', { userId })
+      .andWhere('user.deletedAt IS NULL')
+      .select(['user.id', 'user.password'])
+      .getOne();
 
     if (!user) {
       throw new NotFoundException('Không tìm thấy người dùng');
@@ -173,10 +43,102 @@ export class UserService {
     }
 
     const hashedPassword = await argon.hash(changePasswordDto.newPassword);
-    await this.manager.update(User, user_id, {
+    await this.userRepository.update(userId, {
       password: hashedPassword,
     });
     return Response.SUCCESSFULLY;
+  }
+
+  async updateProfile(userId: string, updateDto: UpdateProfileDto) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId }
+    });
+    if (!user || user.deletedAt) throw new NotFoundException('Không tìm thấy người dùng');
+    
+    Object.assign(user, updateDto);
+    return await this.userRepository.save(user);
+  }
+
+  async createUser(createUserDto: any) {
+    const newUser = this.userRepository.create(createUserDto);
+    return await this.userRepository.save(newUser);
+  }
+
+  async toggleStatus(userId: string, status: boolean) {
+    const user = await this.userRepository.findOneBy({ id: userId });
+    if (!user || user.deletedAt) throw new NotFoundException('Không tìm thấy người dùng');
+    
+    user.status = status;
+    await this.userRepository.save(user);
+    return Response.SUCCESSFULLY;
+  }
+
+  async setPassword(userId: string, newPassword: string) {
+    const user = await this.userRepository.findOneBy({ id: userId });
+    if (!user || user.deletedAt) throw new NotFoundException('Không tìm thấy người dùng');
+    
+    const hashedPassword = await argon.hash(newPassword);
+    user.password = hashedPassword;
+    await this.userRepository.save(user);
+    return Response.SUCCESSFULLY;
+  }
+
+  async getAll(query: { 
+    page?: number, 
+    pageSize?: number, 
+    roleId?: number, 
+    position?: string,
+    search?: string 
+  }) {
+    const page = Number(query.page) || 1;
+    const pageSize = Number(query.pageSize) || 10;
+    const { roleId, position, search } = query;
+
+    const queryBuilder = this.userRepository.createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .leftJoinAndSelect('user.doet', 'doet')
+      .where('user.deletedAt IS NULL')
+      .andWhere('user.doetId IS NULL');
+
+    if (roleId) {
+      queryBuilder.andWhere('user.roleId = :roleId', { roleId });
+    }
+
+    if (position) {
+      queryBuilder.andWhere('user.position ILike :position', { position: `%${position}%` });
+    }
+
+    if (search) {
+      queryBuilder.andWhere('user.fullName ILike :search', { search: `%${search}%` });
+    }
+
+    const [items, count] = await queryBuilder
+      .orderBy('user.createdAt', 'DESC')
+      .skip((page - 1) * pageSize)
+      .take(pageSize)
+      .getManyAndCount();
+
+    return Response.getList({
+      items,
+      count,
+      pageSize,
+      pageNumber: page
+    });
+  }
+
+  async getDetail(id: string) {
+    const user = await this.userRepository.createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .leftJoinAndSelect('user.doet', 'doet')
+      .leftJoinAndSelect('user.avatar', 'avatar')
+      .where('user.id = :id', { id })
+      .andWhere('user.deletedAt IS NULL')
+      .getOne();
+
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng hoặc tài khoản đã bị xóa');
+    }
+    return Response.get(user);
   }
 
   async get(query: { where: string; relation?: string }) {
@@ -207,5 +169,19 @@ export class UserService {
     } catch (error) {
       throw Response.errorInternal(error);
     }
+  }
+
+  async bulkRemove(ids: string[]) {
+    if (!ids || ids.length === 0) {
+      throw new BadRequestException('Danh sách ID người dùng cần xóa không được để trống');
+    }
+
+    const users = await this.userRepository.findBy({ id: In(ids) });
+    if (users.length === 0) {
+      throw new NotFoundException('Không tìm thấy tài khoản người dùng nào hợp lệ để xóa');
+    }
+
+    await this.userRepository.softDelete(ids);
+    return Response.SUCCESSFULLY;
   }
 }

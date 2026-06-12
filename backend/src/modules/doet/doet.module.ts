@@ -4,9 +4,10 @@ import { DoetController } from './doet.controller';
 import { Doet } from './doet.entity';
 import { DoetService } from './doet.service';
 import { MediaModule } from '../media/media.module';
+import { User } from '../user/user.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Doet]),MediaModule],
+  imports: [TypeOrmModule.forFeature([Doet, User]),MediaModule],
   providers: [DoetService],
   controllers: [DoetController],
 })

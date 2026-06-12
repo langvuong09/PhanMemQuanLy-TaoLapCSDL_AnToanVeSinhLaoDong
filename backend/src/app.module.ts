@@ -11,11 +11,13 @@ import { MediaModule } from './modules/media/media.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DoetModule } from './modules/doet/doet.module';
-import { DomainMiddleware } from './middleware/domain.middleware';
 import { dbOptions, load } from './config';
 import { RedisModule } from './redis/redis.module';
 import { EmailModule } from './helper/email.module';
 import { UserModule } from './modules/user/user.module';
+import { BusinessTypeModule } from './modules/bussinessType/business-type.module';
+import { In } from 'typeorm';
+import { IndustryModule } from './modules/industry/industry.module';
 
 @Module({
   imports: [
@@ -25,20 +27,22 @@ import { UserModule } from './modules/user/user.module';
       useFactory: dbOptions,
       inject: [ConfigService],
     }),
+    AuthModule,
     MediaModule,
     DoetModule,
     ViewModule,
     RedisModule,
-    AuthModule,
     EmailModule,
     UserModule,
+    BusinessTypeModule,
+    IndustryModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(DomainMiddleware).forRoutes('*');
+    // consumer.apply(DomainMiddleware).forRoutes('*');
   }
 }
 

@@ -1,62 +1,124 @@
-import { Body, ClassSerializerInterceptor, Controller, Get, Param, Post, Query, Req, UseGuards, UseInterceptors } from "@nestjs/common";
-import { User } from "./user.entity";
+import { 
+  Body, Controller, Get, Param, Post, Put, Query, UseGuards, ParseUUIDPipe, Delete, Patch, 
+  UseInterceptors,
+  ClassSerializerInterceptor
+} from "@nestjs/common";
 import { UserService } from "./user.service";
 import { AuthGuard } from "../../commons/guards/authGuard";
-import ResponseInterceptor from "src/interceptors/response.interceptor";
-import { GetAllDto } from "src/commons";
 import { GetUser } from "src/commons/guards/user.decorator";
 import { CurrentUser } from "../auth/auth.model";
 import { ChangePasswordDto } from "./dto/change-password";
-import { ApiBody, ApiOperation, ApiTags,ApiBearerAuth } from '@nestjs/swagger';
+import { UpdateProfileDto } from "./dto/update-profile";
+import { CreateUserDto } from "./dto/create-user";
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiQuery } from '@nestjs/swagger';
+import { ApiBody } from "@nestjs/swagger";
 
 @ApiTags("Users")
 @Controller("users")
 @UseGuards(AuthGuard)
+@UseInterceptors(ClassSerializerInterceptor)
 @ApiBearerAuth()
 export class UserController {
-  constructor(private readonly userService: UserService) {
-  }
-
-  @Get("checkUsername")
-  @UseInterceptors(ResponseInterceptor, ClassSerializerInterceptor)
-  @ApiOperation({ summary: "Get items" })
-  async checkUsername(
-    @Query("username") username: string
-  ): Promise<{ username: string; existed: boolean }> {
-    return await this.userService.checkUsername(username);
-  }
+  constructor(private readonly userService: UserService) {}
 
   @Get()
-  @ApiOperation({ summary: "Get items" })
-  async getAll(@Query() query: GetAllDto): Promise<any> {
+  @ApiOperation({ summary: "Lấy danh sách người dùng có phân trang và lọc" })
+  @ApiQuery({ name: "page", required: false })
+  @ApiQuery({ name: "pageSize", required: false })
+  @ApiQuery({ name: "roleId", required: false })
+  @ApiQuery({ name: "position", required: false })
+  @ApiQuery({ name: "search", required: false })
+  async getAll(@Query() query: any) {
     return await this.userService.getAll(query);
   }
 
-  @Post("import")
-  @UseInterceptors(ResponseInterceptor, ClassSerializerInterceptor)
-  @ApiOperation({ summary: "Get items" })
-  async import(
-    @Req() req: any,
-    @Body("users") users: any
-  ): Promise<{ success: number; err: number; username: [] }> {
-    return await this.userService.import(req.user, users);
+  @Get(":id")
+  @ApiOperation({ summary: "Lấy thông tin chi tiết người dùng" })
+  async getDetail(@Param("id", ParseUUIDPipe) id: string) {
+    return await this.userService.getDetail(id);
   }
 
-  @Post("recovery")
-  @ApiOperation({ summary: "recovery account" })
-  async recovery(
-    @Body("user_id") user_id: string
-  ): Promise<{ success: boolean }> {
-    return await this.userService.recovery(user_id);
+  @Post()
+  @ApiOperation({ summary: "Tạo mới người dùng" })
+  @ApiBody({ type: CreateUserDto, description: "Dữ liệu để tạo người dùng mới" })
+  async createUser(@Body() createUserDto: CreateUserDto) {
+    return await this.userService.createUser(createUserDto);
+  }
+
+  @Patch(":id/status")
+  @ApiOperation({ summary: "Bật/Tắt trạng thái người dùng" })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        status: { 
+          type: 'boolean', 
+          description: 'Trạng thái hoạt động của user (true: Bật, false: Tắt)', 
+          example: true 
+        }
+      },
+      required: ['status']
+    }
+  })
+  async toggleStatus(
+    @Param("id", ParseUUIDPipe) id: string, 
+    @Body("status") status: boolean
+  ) {
+    return await this.userService.toggleStatus(id, status);
+  }
+
+  @Put(":id/profile")
+  @ApiOperation({ summary: "Cập nhật thông tin" })
+  async updateProfile(
+    @Param("id", ParseUUIDPipe) id: string, 
+    @Body() updateDto: UpdateProfileDto
+  ) {
+    return await this.userService.updateProfile(id, updateDto);
   }
 
   @Post("reset-password")
-  @ApiBody({ type: ChangePasswordDto })
-  @ApiOperation({ summary: "reset password account" })
+  @ApiOperation({ summary: "Đổi mật khẩu người dùng" })
   async resetPassword(
     @GetUser() currentUser: CurrentUser,
     @Body() changePasswordDto: ChangePasswordDto
-  ): Promise<{ success: boolean }> {
-    return await this.userService.resetPassword(currentUser.id , changePasswordDto);
+  ) {
+    return await this.userService.resetPassword(currentUser.id, changePasswordDto);
+  }
+
+  @Post(":id/set-password")
+  @ApiOperation({ summary: "Đặt lại mật khẩu cho người dùng (Admin)" })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        newPassword: { 
+          type: 'string', 
+          example: 'AdminReset@123', 
+          description: 'Mật khẩu mới do Admin chỉ định' 
+        }
+      },
+      required: ['newPassword']
+    }
+  })
+  async setPassword(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body("newPassword") newPassword: string
+  ) {
+    return await this.userService.setPassword(id, newPassword);
+  }
+
+  @Post('bulk-delete')
+  @ApiOperation({ summary: 'Xóa mềm hàng loạt tài khoản người dùng khỏi hệ thống' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        ids: { type: 'array', items: { type: 'string' }, example: ["uuid-1", "uuid-2"], description: 'Mảng các UUID người dùng cần xóa' }
+      },
+      required: ['ids']
+    }
+  })
+  async bulkDelete(@Body('ids') ids: string[]) {
+    return await this.userService.bulkRemove(ids);
   }
 }
