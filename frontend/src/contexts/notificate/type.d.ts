@@ -4,10 +4,12 @@ export type Notificate = {
     message: string;
 }
 
+export type NotificatePayload = {
+    type: "success" | "warning" | "error";
+    message: string | Error | unknown;
+}
+
 export type NotificateContextType = {
-    showNotification: (noti: {
-        type: "success" | "warning" | "error";
-        message: string;
-    }) => void;
+    showNotification: (noti: NotificatePayload) => void;
     closeNotification: (id: string) => void;
 }

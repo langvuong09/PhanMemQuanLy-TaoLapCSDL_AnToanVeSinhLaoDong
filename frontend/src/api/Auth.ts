@@ -3,10 +3,10 @@ import { AuthData } from "./types/auth";
 
 export class Auth extends Base {
     constructor() {
-        const END_POINT = process.env.NEXT_PUBLIC_API_ENDPOINT || "http://localhost:3000";
+        const END_POINT = process.env.NEXT_PUBLIC_API_ENDPOINT || "http://localhost:3010";
         console.log("API Endpoint:", END_POINT);
         super({
-            baseURL: END_POINT + "/auth",
+            baseURL: END_POINT + "/api/v1/auth",
         });
     }
 
@@ -18,13 +18,13 @@ export class Auth extends Base {
                 data: { username: username, password: password }
             });
 
-            if (result?.data) {
+            if (result?.data && result?.success) {
                 return result.data;
             }
-        } catch {
+        } catch  {
             throw Error("Thông tin đăng nhập không chính xác");
         }
-
+        
         throw Error("Lỗi không xác định vui lòng thử lại sau");
     }
 

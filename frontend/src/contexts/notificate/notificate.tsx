@@ -9,14 +9,39 @@ const NotificateContext = createContext<NotificateContextType | undefined>(undef
 const NotificateProvider = ({ children }: { children: React.ReactNode }) => {
     const [notifications, setNotifications] = useState<Notificate[]>([]);
 
+    const normalizeMessage = (message: string | Error | unknown): string => {
+        if (typeof message === "string") {
+            return message;
+        }
+
+        if (message instanceof Error) {
+            return message.message || String(message);
+        }
+
+        if (message && typeof message === "object") {
+            if ("message" in message && typeof (message as any).message === "string") {
+                return (message as any).message;
+            }
+
+            try {
+                return JSON.stringify(message);
+            } catch {
+                return String(message);
+            }
+        }
+
+        return message === undefined || message === null ? "" : String(message);
+    }
+
     const showNotification = (
         noti: {
             type: "success" | "warning" | "error";
-            message: string;
+            message: string | Error | unknown;
         }) => {
         const id = uuidv4();
+        const message = normalizeMessage(noti.message) || "Có thông báo mới";
 
-        setNotifications(prev => [...prev, { id: id, type: noti.type, message: noti.message }]);
+        setNotifications(prev => [...prev, { id, type: noti.type, message }]);
 
         setTimeout(() => {
             closeNotification(id);
