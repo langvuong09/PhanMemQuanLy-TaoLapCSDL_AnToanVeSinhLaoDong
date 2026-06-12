@@ -7,6 +7,9 @@ import { MediaService } from '../media/media.service';
 import Response from '../../commons/response';
 import { CreateDoetDto } from './dto/create-doet.dto';
 import { UpdateDoetDto } from './dto/update-doet.dto';
+import { Role } from '../role/role.entity';
+import { Industry } from '../industry/industry.entity';
+import { BusinessType } from '../bussinessType/business-type.entity';
 
 @Injectable()
 export class DoetService {
@@ -17,14 +20,23 @@ export class DoetService {
     private readonly userRepository: Repository<User>,
     private readonly mediaService: MediaService,
     private readonly dataSource: DataSource,
+    @InjectRepository(Role)
+    private readonly roleRepository: Repository<Role>,
   ) {}
 
   async create(dto: CreateDoetDto) {
     const trimmedTaxCode = dto.taxCode.trim();
 
-    const isTaxCodeExist = await this.doetRepository.findOneBy({ taxCode: trimmedTaxCode });
+    const isTaxCodeExist = await this.doetRepository.findOne({
+      where: { taxCode: trimmedTaxCode }
+    });
     if (isTaxCodeExist) {
       throw new BadRequestException('Mã số thuế này đã tồn tại trên hệ thống!');
+    }
+
+    const businessRole = await this.roleRepository.findOneBy({ code: 'business' });
+    if (!businessRole) {
+      throw new NotFoundException('Hệ thống chưa cấu hình quyền (Role) dành cho Doanh Nghiệp!');
     }
 
     const queryRunner = this.dataSource.createQueryRunner();
@@ -32,6 +44,25 @@ export class DoetService {
     await queryRunner.startTransaction();
 
     try {
+      const businessType = await queryRunner.manager.findOne(BusinessType, {
+        where: { 
+          id: dto.businessTypeId,
+          isActive: true 
+        }
+      });
+      if (!businessType) {
+        throw new BadRequestException('Loại hình doanh nghiệp đã chọn không tồn tại hoặc đã bị ngừng hoạt động!');
+      }
+
+      const industry = await queryRunner.manager.findOne(Industry, {
+        where: {
+          id: dto.industryId,
+          isActive: true
+        }
+      });
+      if (!industry) {
+        throw new BadRequestException('Ngành nghề đã chọn không tồn tại hoặc đã bị ngừng hoạt động!');
+      }
       const newDoet = queryRunner.manager.create(Doet, {
         ...dto,
         taxCode: trimmedTaxCode,
@@ -44,7 +75,7 @@ export class DoetService {
         password: defaultPassword,
         fullName: dto.name,
         status: true,
-        roleId: 2,
+        roleId: businessRole.id,
         doetId: savedDoet.id,
         province: dto.province,
         district: dto.district,
@@ -64,7 +95,6 @@ export class DoetService {
     }
   }
 
-  // 🎯 LẤY DANH SÁCH: Gốc từ User - Trả về TRỌN VẸN thông tin Doet kèm theo
   async getAll(query: { 
     page?: number; 
     pageSize?: number; 

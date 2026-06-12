@@ -7,23 +7,27 @@ import { BusinessTypeService } from './business-type.service';
 import { CreateBusinessTypeDto } from './dto/create-business-type.dto';
 import { UpdateBusinessTypeDto } from './dto/update-business-type.dto';
 import { AuthGuard } from "../../commons/guards/authGuard";
+import { PermissionGuard } from 'src/commons/guards/permissionGuard';
+import { PermissionCode } from 'src/commons/enums/permission.enum';
+import { RequirePermissions } from 'src/commons/guards/permission.decorator';
 
 @ApiTags('Business Types (Loại hình doanh nghiệp)')
 @Controller('business-types')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, PermissionGuard)
 @ApiBearerAuth()
 @UseInterceptors(ClassSerializerInterceptor)
 export class BusinessTypeController {
   constructor(private readonly businessTypeService: BusinessTypeService) {}
 
   @Post()
+  @RequirePermissions(PermissionCode.BUSINESS_TYPE_CREATE)
   @ApiOperation({ summary: 'Tạo mới loại hình doanh nghiệp' })
   async create(@Body() dto: CreateBusinessTypeDto) {
     return await this.businessTypeService.create(dto);
   }
 
-  // 🎯 1. API CHO ADMIN: Lấy toàn bộ bao gồm cả phần tử bị ẩn (isActive = false)
   @Get('admin')
+  @RequirePermissions(PermissionCode.BUSINESS_TYPE_UPDATE)
   @ApiOperation({ summary: 'Lấy danh sách loại hình doanh nghiệp (Dành cho Admin - Lấy hết)' })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'pageSize', required: false, example: 10 })
@@ -32,8 +36,8 @@ export class BusinessTypeController {
     return await this.businessTypeService.getAllForAdmin(query);
   }
 
-  // 🎯 2. API CHO DOANH NGHIỆP: Chỉ lấy các loại đang hoạt động (isActive = true)
   @Get()
+  @RequirePermissions(PermissionCode.BUSINESS_TYPE_VIEW)
   @ApiOperation({ summary: 'Lấy danh sách loại hình doanh nghiệp đang hoạt động (Dành cho Doanh nghiệp)' })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'pageSize', required: false, example: 10 })
@@ -43,12 +47,14 @@ export class BusinessTypeController {
   }
 
   @Get(':id')
+  @RequirePermissions(PermissionCode.BUSINESS_TYPE_VIEW)
   @ApiOperation({ summary: 'Lấy chi tiết loại hình doanh nghiệp' })
   async getDetail(@Param('id', ParseIntPipe) id: number) {
     return await this.businessTypeService.getDetail(id);
   }
 
   @Put(':id')
+  @RequirePermissions(PermissionCode.BUSINESS_TYPE_UPDATE)
   @ApiOperation({ summary: 'Cập nhật thông tin loại hình doanh nghiệp' })
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -58,6 +64,7 @@ export class BusinessTypeController {
   }
 
   @Patch(':id/active')
+  @RequirePermissions(PermissionCode.BUSINESS_TYPE_UPDATE)
   @ApiOperation({ summary: 'Bật/Tắt trạng thái hoạt động' })
   @ApiBody({
     schema: {
@@ -75,7 +82,8 @@ export class BusinessTypeController {
     return await this.businessTypeService.toggleActive(id, isActive);
   }
 
-   @Post('bulk-delete')
+  @Post('bulk-delete')
+  @RequirePermissions(PermissionCode.BUSINESS_TYPE_DELETE)
   @ApiOperation({ summary: 'Xóa mềm hàng loạt loại hình kinh doanh' })
   @ApiBody({
     schema: {

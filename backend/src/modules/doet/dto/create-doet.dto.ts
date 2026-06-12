@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional, IsString, IsDateString, IsObject } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString, IsDateString, IsObject, Matches } from 'class-validator';
 import { KeyValue } from 'src/commons/bases/baseAddressEntity';
 
 export class CreateDoetDto {
@@ -8,9 +8,16 @@ export class CreateDoetDto {
   @IsString()
   name!: string;
 
-  @ApiProperty({ example: '910000888292' })
-  @IsNotEmpty()
-  @IsString()
+  @ApiProperty({ 
+    example: '9100008882', 
+    description: 'Mã số thuế doanh nghiệp (10 số) hoặc chi nhánh (13 số)' 
+  })
+  @IsNotEmpty({ message: 'Mã số thuế không được để trống' })
+  @IsString({ message: 'Mã số thuế phải là chuỗi ký tự' })
+  @Matches(
+    /^(?:\d{10}|\d{10}-\d{3}|\d{13})$/, 
+    { message: 'Mã số thuế không đúng định dạng quy định (phải gồm 10 số hoặc 13 số)' }
+  )
   taxCode!: string;
 
   @ApiProperty({ example: '2020-01-01' })
@@ -58,7 +65,6 @@ export class CreateDoetDto {
   @IsString()
   quarter?: string;
 
-  // --- Cấu trúc kiểu JSONB Object nhận từ FE ---
   @ApiProperty({ example: { key: '79', value: 'Thành phố Hồ Chí Minh' } })
   @IsNotEmpty()
   @IsObject()

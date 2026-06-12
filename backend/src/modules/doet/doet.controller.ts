@@ -6,22 +6,27 @@ import { DoetService } from './doet.service';
 import { CreateDoetDto } from './dto/create-doet.dto';
 import { UpdateDoetDto } from './dto/update-doet.dto';
 import { AuthGuard } from "../../commons/guards/authGuard";
+import { PermissionCode } from 'src/commons/enums/permission.enum';
+import { RequirePermissions } from 'src/commons/guards/permission.decorator';
+import { PermissionGuard } from 'src/commons/guards/permissionGuard';
 
 @ApiTags('Doets (Quản lý doanh nghiệp)')
 @Controller('doets')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, PermissionGuard)
 @ApiBearerAuth()
 @UseInterceptors(ClassSerializerInterceptor)
 export class DoetController {
   constructor(private readonly doetService: DoetService) {}
 
   @Post()
+  @RequirePermissions(PermissionCode.DOET_CREATE)
   @ApiOperation({ summary: 'Đăng ký doanh nghiệp mới (Tự động cấp tài khoản User)' })
   async create(@Body() dto: CreateDoetDto) {
     return await this.doetService.create(dto);
   }
 
   @Get()
+  @RequirePermissions(PermissionCode.DOET_VIEW)
   @ApiOperation({ summary: 'Lấy danh sách doanh nghiệp (Bộ lọc nâng cao theo từng cột trên UI)' })
   @ApiQuery({ name: 'page', required: false, example: 1 })
   @ApiQuery({ name: 'pageSize', required: false, example: 10 })
@@ -45,12 +50,14 @@ export class DoetController {
   }
 
   @Get(':id')
+  @RequirePermissions(PermissionCode.DOET_VIEW)
   @ApiOperation({ summary: 'Xem chi tiết hồ sơ doanh nghiệp' })
   async getDetail(@Param('id', ParseIntPipe) id: number) {
     return await this.doetService.getDetail(id);
   }
 
   @Put(':id')
+  @RequirePermissions(PermissionCode.DOET_UPDATE)
   @ApiOperation({ summary: 'Cập nhật hồ sơ doanh nghiệp (Không cho sửa MST, tự động đồng bộ địa chỉ User)' })
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -60,6 +67,7 @@ export class DoetController {
   }
 
   @Patch(':id/status')
+  @RequirePermissions(PermissionCode.DOET_UPDATE)
   @ApiOperation({ summary: 'Bật/Tắt trạng thái hoạt động của Doanh nghiệp' })
   @ApiBody({
     schema: {
@@ -78,6 +86,7 @@ export class DoetController {
   }
 
   @Post('bulk-delete')
+  @RequirePermissions(PermissionCode.DOET_DELETE)
   @ApiOperation({ summary: 'Xóa mềm hàng loạt doanh nghiệp cùng tài khoản người dùng liên quan' })
   @ApiBody({
     schema: {
@@ -93,6 +102,7 @@ export class DoetController {
   }
 
   @Delete('files/:fileId')
+  @RequirePermissions(PermissionCode.DOET_UPDATE)
   @ApiOperation({ summary: 'Xóa file đính kèm khỏi doanh nghiệp (Xóa triệt để trên Cloudinary)' })
   async removeFile(@Param('fileId') fileId: string) {
     return await this.doetService.removeFile(fileId);
