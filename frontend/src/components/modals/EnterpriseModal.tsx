@@ -10,7 +10,7 @@ import type { Enterprise } from '@/src/mocks/enterprises'
 type Props = {
   isOpen: boolean
   onClose: () => void
-  onSave: (form: EnterpriseFormData) => void
+  onSave: (form: EnterpriseFormData, attachments: AttachmentGroup[]) => void
   mode?: EnterpriseFormMode
   initialData?: Enterprise | null
   userRole?: string
@@ -121,8 +121,38 @@ export default function EnterpriseModal({
   useEffect(() => {
     if (initialData && (mode === 'edit' || mode === 'view')) {
       setForm(enterpriseToForm(initialData))
+
+      // Use attachments from initialData if available, otherwise use default mock for visualization
+      if (initialData.attachments && initialData.attachments.length > 0) {
+        setAttachmentGroups(initialData.attachments.map(g => ({
+          groupName: g.groupName,
+          files: g.files.map(f => ({
+            id: f.id,
+            name: f.name,
+            size: f.size,
+            url: f.url
+          }))
+        })))
+      } else {
+        // Fallback mock files for existing data without attachments
+        setAttachmentGroups([
+          {
+            groupName: 'Giấy phép kinh doanh',
+            files: [
+              { id: -1, name: 'giay_phep_kd_da_co.pdf', size: '1.2 MB', url: '#' },
+            ]
+          },
+          {
+            groupName: 'Giấy tờ khác',
+            files: [
+              { id: -2, name: 'hop_dong_thue_nha_da_co.jpg', size: '850 KB', url: 'https://picsum.photos/800/600' },
+            ]
+          },
+        ])
+      }
     } else if (mode === 'create') {
       setForm({ ...emptyForm })
+      setAttachmentGroups(defaultAttachmentGroups.map((g) => ({ ...g, files: [] })))
     }
     setErrors({ ...emptyErrors })
     setCurrentStep(1)
@@ -202,7 +232,7 @@ export default function EnterpriseModal({
   }
 
   const handleConfirm = () => {
-    onSave(form)
+    onSave(form, attachmentGroups)
 
     if (mode === 'create') {
       // Generate account info and show popup
@@ -345,23 +375,32 @@ export default function EnterpriseModal({
 
           {/* Content - Scrollable */}
           <div className="flex-1 overflow-y-auto px-8 py-6 min-h-0">
-            {(currentStep === 1 || isViewMode) && (
-              <EnterpriseStepOne
-                form={form}
-                errors={errors}
-                attachmentGroups={attachmentGroups}
-                onChange={handleChange}
-                onAddFiles={handleAddFiles}
-                onRemoveFile={handleRemoveFile}
-                mode={mode}
-                userRole={userRole}
-              />
-            )}
-            {currentStep === 2 && !isViewMode && (
+            {isViewMode ? (
               <EnterpriseStepConfirm
                 form={form}
                 attachmentGroups={attachmentGroups}
               />
+            ) : (
+              <>
+                {currentStep === 1 && (
+                  <EnterpriseStepOne
+                    form={form}
+                    errors={errors}
+                    attachmentGroups={attachmentGroups}
+                    onChange={handleChange}
+                    onAddFiles={handleAddFiles}
+                    onRemoveFile={handleRemoveFile}
+                    mode={mode}
+                    userRole={userRole}
+                  />
+                )}
+                {currentStep === 2 && (
+                  <EnterpriseStepConfirm
+                    form={form}
+                    attachmentGroups={attachmentGroups}
+                  />
+                )}
+              </>
             )}
           </div>
 
