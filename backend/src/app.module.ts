@@ -18,6 +18,11 @@ import { UserModule } from './modules/user/user.module';
 import { BusinessTypeModule } from './modules/bussinessType/business-type.module';
 import { In } from 'typeorm';
 import { IndustryModule } from './modules/industry/industry.module';
+import { ReportTypeModule } from './modules/typeReport/report-type.module';
+import { Trauma } from './modules/traumaFactor/trauma-factor.entity';
+import { TraumaModule } from './modules/traumaFactor/trauma-factor.module';
+import { InjuryTypeModule } from './modules/typeInjury/injury.module';
+import { ReportModule } from './modules/report/report.module';
 
 @Module({
   imports: [
@@ -29,13 +34,17 @@ import { IndustryModule } from './modules/industry/industry.module';
     }),
     AuthModule,
     MediaModule,
-    DoetModule,
     ViewModule,
     RedisModule,
     EmailModule,
     UserModule,
     BusinessTypeModule,
     IndustryModule,
+    DoetModule,
+    TraumaModule,
+    InjuryTypeModule,
+    ReportTypeModule,
+    ReportModule
   ],
   controllers: [AppController],
   providers: [AppService],
