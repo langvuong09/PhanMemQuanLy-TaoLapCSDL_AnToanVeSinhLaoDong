@@ -6,7 +6,7 @@ import { UserService } from './user.service';
 import { PermissionModule } from '../permission/permission.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), PermissionModule],
+  imports: [TypeOrmModule.forFeature([User]) , PermissionModule],
   controllers: [UserController],
   providers: [UserService],
   exports: [UserService],
