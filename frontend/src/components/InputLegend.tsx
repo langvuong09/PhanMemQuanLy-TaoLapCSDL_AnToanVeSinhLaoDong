@@ -26,7 +26,7 @@ const InputLegend = ({
             <div className={`relative ${input.disabled && "bg-gray-100"} ring ${errorMess ? "ring-red-600" : "ring-gray-400 focus-within:ring-blue-500 focus-within:ring-2"} px-3 py-2 rounded-lg`}>
                 {label && (
                     <label
-                        className="absolute bg-white bottom-full translate-y-1/2 text-sm text-gray-400 px-1"
+                        className="absolute bg-white bottom-full translate-y-1/2 text-sm text-gray-600 px-1"
                         htmlFor={input.id}
                     >
                         {label}
@@ -47,7 +47,7 @@ const InputLegend = ({
                         <button
                             type="button"
                             onClick={togglePasswordVisibility}
-                            className="text-gray-500 hover:text-gray-700 shrink-0"
+                            className="text-gray-600 hover:text-gray-700 shrink-0"
                             title={isShowPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                         >
                             {isShowPassword ? (
