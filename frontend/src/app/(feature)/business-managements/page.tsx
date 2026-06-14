@@ -233,7 +233,7 @@ export default function BusinessManagementsPage() {
         isOpen={true}
         onClose={closeCreate}
         onSave={handleSave}
-        mode={viewMode === 'list' ? 'create' : viewMode}
+        mode={viewMode}
         initialData={selectedEnterprise}
         userRole={userRole}
       />

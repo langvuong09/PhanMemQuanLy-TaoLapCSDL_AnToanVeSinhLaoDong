@@ -19,7 +19,7 @@ const SelectLegend = ({
             <div className={`relative border border-gray-400 px-3 py-2 rounded-lg ${select.disabled && "bg-gray-100"}`}>
                 {label && (
                     <label
-                        className="absolute bg-white bottom-full translate-y-1/2 text-sm text-gray-400 px-1"
+                        className="absolute bg-white bottom-full translate-y-1/2 text-sm text-gray-600 px-1"
                         htmlFor={select.id}
                     >
                         {label}

@@ -1,29 +1,100 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useContext } from 'react'
 import TopHero from '@/src/components/TopHero'
 import ToggleSwitch from '@/src/components/ToggleSwitch'
 import BusinessTypeModal from '@/src/components/modals/BusinessTypeModal'
-import { BusinessType, businessTypesMock } from '@/src/mocks/business-types'
+import BulkDeleteBar from '@/src/components/common/BulkDeleteBar'
+import DeleteConfirmModal from '@/src/components/common/DeleteConfirmModal'
+import { BusinessTypeApi, type IBusinessType } from '@/src/api/BusinessType'
+import { NotificateContext } from '@/src/contexts/notificate/notificate'
 
-const GRID_COLS = 'grid-cols-[40px_40px_120px_1fr_140px]'
+const GRID_COLS = 'grid-cols-[40px_70px_120px_1fr_140px]'
 
 export default function BusinessTypesPage() {
-  const [data, setData] = useState<BusinessType[]>(businessTypesMock)
+  const notificate = useContext(NotificateContext)
+  const api = useMemo(() => new BusinessTypeApi(), [])
+
+  // Table & Pagination states
+  const [data, setData] = useState<IBusinessType[]>([])
+  const [loading, setLoading] = useState(false)
+  const [totalItems, setTotalItems] = useState(0)
+  const [pageSize, setPageSize] = useState(10)
+  const [currentPage, setCurrentPage] = useState(1)
+
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<number[]>([])
+
+  // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingItem, setEditingItem] = useState<BusinessType | null>(null)
+  const [editingItem, setEditingItem] = useState<IBusinessType | null>(null)
   const [form, setForm] = useState({ code: '', name: '', status: 'true' })
   const [errors, setErrors] = useState({ code: '', name: '' })
-  const [selectedIds, setSelectedIds] = useState<number[]>([])
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Delete states
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Filter states
   const [filterCode, setFilterCode] = useState('')
   const [filterName, setFilterName] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
 
-  // Pagination
-  const [pageSize, setPageSize] = useState(10)
-  const [currentPage, setCurrentPage] = useState(1)
+  // Fetch data from real backend API
+  const fetchData = async (
+    page = 1,
+    currentFilters = { code: filterCode, name: filterName, status: filterStatus }
+  ) => {
+    setLoading(true)
+    try {
+      const isActive =
+        currentFilters.status === 'active'
+          ? true
+          : currentFilters.status === 'inactive'
+          ? false
+          : undefined
+
+      const result = await api.getAllForAdmin({
+        page,
+        pageSize,
+        code: currentFilters.code.trim() || undefined,
+        name: currentFilters.name.trim() || undefined,
+        isActive,
+      })
+
+      if (result.success && result.data) {
+        setData(result.data.items)
+        setTotalItems(result.data.count)
+      } else {
+        notificate?.showNotification({
+          type: 'error',
+          message: result.message || 'Không thể lấy danh sách loại hình kinh doanh.'
+        })
+      }
+    } catch (error) {
+      console.error(error)
+      notificate?.showNotification({
+        type: 'error',
+        message: 'Lỗi kết nối tới hệ thống. Vui lòng thử lại sau.'
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Reload data when page size, current page, or filters change
+  useEffect(() => {
+    fetchData(currentPage)
+  }, [currentPage, pageSize, filterCode, filterName, filterStatus])
+
+  // Filter handlers
+  const handleFilterChange = (field: string, value: string) => {
+    if (field === 'code') setFilterCode(value)
+    if (field === 'name') setFilterName(value)
+    if (field === 'status') setFilterStatus(value)
+    setCurrentPage(1)
+  }
 
   const openNew = () => {
     setEditingItem(null)
@@ -32,15 +103,17 @@ export default function BusinessTypesPage() {
     setIsModalOpen(true)
   }
 
-  const openEdit = (item: BusinessType) => {
+  const openEdit = (item: IBusinessType) => {
     setEditingItem(item)
-    setForm({ code: item.code, name: item.name, status: item.status ? 'true' : 'false' })
+    setForm({ code: item.code, name: item.name, status: item.isActive ? 'true' : 'false' })
     setErrors({ code: '', name: '' })
     setIsModalOpen(true)
   }
 
   const closeModal = () => {
-    setIsModalOpen(false)
+    if (!isSaving) {
+      setIsModalOpen(false)
+    }
   }
 
   const validate = () => {
@@ -51,40 +124,109 @@ export default function BusinessTypesPage() {
     return !nextErrors.code && !nextErrors.name
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return
 
-    if (editingItem) {
-      setData((prev) =>
-        prev.map((item) =>
-          item.id === editingItem.id
-            ? { ...item, code: form.code, name: form.name, status: form.status === 'true' }
-            : item
-        )
-      )
-    } else {
-      const nextItem: BusinessType = {
-        id: Math.max(0, ...data.map((item) => item.id)) + 1,
-        code: form.code,
-        name: form.name,
-        status: form.status === 'true',
-      }
-      setData((prev) => [nextItem, ...prev])
-    }
+    setIsSaving(true)
+    try {
+      if (editingItem) {
+        // Edit flow
+        const updatePromises: Promise<any>[] = [
+          api.update(editingItem.id, { name: form.name })
+        ]
 
-    closeModal()
+        const nextActive = form.status === 'true'
+        if (editingItem.isActive !== nextActive) {
+          updatePromises.push(api.toggleActive(editingItem.id, nextActive))
+        }
+
+        const [updateResult] = await Promise.all(updatePromises)
+        if (updateResult.success) {
+          notificate?.showNotification({
+            type: 'success',
+            message: 'Cập nhật loại hình kinh doanh thành công.'
+          })
+          setIsModalOpen(false)
+          fetchData(currentPage)
+        } else {
+          notificate?.showNotification({
+            type: 'error',
+            message: updateResult.message || 'Không thể cập nhật loại hình kinh doanh.'
+          })
+        }
+      } else {
+        // Create flow
+        const result = await api.create({
+          code: form.code,
+          name: form.name,
+          isActive: form.status === 'true'
+        })
+
+        if (result.success) {
+          notificate?.showNotification({
+            type: 'success',
+            message: 'Thêm mới loại hình kinh doanh thành công.'
+          })
+          setIsModalOpen(false)
+          setCurrentPage(1)
+          fetchData(1)
+        } else {
+          notificate?.showNotification({
+            type: 'error',
+            message: result.message || 'Không thể thêm mới loại hình kinh doanh.'
+          })
+        }
+      }
+    } catch (error) {
+      console.error(error)
+      notificate?.showNotification({
+        type: 'error',
+        message: 'Lỗi khi lưu dữ liệu. Vui lòng thử lại sau.'
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const handleToggleStatus = (id: number) => {
+  const handleToggleStatus = async (item: IBusinessType) => {
+    const nextStatus = !item.isActive
+    // Optimistic UI update
     setData((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, status: !item.status } : item
-      )
+      prev.map((x) => (x.id === item.id ? { ...x, isActive: nextStatus } : x))
     )
+
+    try {
+      const result = await api.toggleActive(item.id, nextStatus)
+      if (!result.success) {
+        // Rollback
+        setData((prev) =>
+          prev.map((x) => (x.id === item.id ? { ...x, isActive: !nextStatus } : x))
+        )
+        notificate?.showNotification({
+          type: 'error',
+          message: result.message || 'Thay đổi trạng thái thất bại.'
+        })
+      } else {
+        notificate?.showNotification({
+          type: 'success',
+          message: `Thay đổi trạng thái của loại hình "${item.name}" thành công.`
+        })
+      }
+    } catch (error) {
+      console.error(error)
+      // Rollback
+      setData((prev) =>
+        prev.map((x) => (x.id === item.id ? { ...x, isActive: !nextStatus } : x))
+      )
+      notificate?.showNotification({
+        type: 'error',
+        message: 'Lỗi hệ thống khi thay đổi trạng thái.'
+      })
+    }
   }
 
   const handleSelectAll = (checked: boolean) => {
-    setSelectedIds(checked ? paginatedRows.map((r) => r.id) : [])
+    setSelectedIds(checked ? data.map((r) => r.id) : [])
   }
 
   const handleSelectOne = (id: number) => {
@@ -93,21 +235,41 @@ export default function BusinessTypesPage() {
     )
   }
 
-  const filteredRows = useMemo(() => {
-    return data.filter((item) => {
-      const matchCode = filterCode ? item.code.toLowerCase().includes(filterCode.toLowerCase()) : true
-      const matchName = filterName ? item.name.toLowerCase().includes(filterName.toLowerCase()) : true
-      const matchStatus =
-        filterStatus === '' ? true :
-          filterStatus === 'active' ? item.status :
-            filterStatus === 'inactive' ? !item.status : true
-      return matchCode && matchName && matchStatus
-    })
-  }, [data, filterCode, filterName, filterStatus])
+  const handleDelete = async () => {
+    setIsDeleting(true)
+    try {
+      const result = await api.bulkDelete(selectedIds)
+      if (result.success) {
+        notificate?.showNotification({
+          type: 'success',
+          message:
+            selectedIds.length === 1
+              ? 'Xóa loại hình kinh doanh thành công.'
+              : `Đã xóa thành công ${selectedIds.length} loại hình kinh doanh.`
+        })
+        setSelectedIds([])
+        setCurrentPage(1)
+        fetchData(1)
+      } else {
+        notificate?.showNotification({
+          type: 'error',
+          message: result.message || 'Không thể xóa các loại hình kinh doanh đã chọn.'
+        })
+      }
+    } catch (error) {
+      console.error(error)
+      notificate?.showNotification({
+        type: 'error',
+        message: 'Lỗi hệ thống khi xóa dữ liệu.'
+      })
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
+    }
+  }
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize))
-  const paginatedRows = filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-  const allSelected = paginatedRows.length > 0 && paginatedRows.every((r) => selectedIds.includes(r.id))
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize))
+  const allSelected = data.length > 0 && data.every((r) => selectedIds.includes(r.id))
 
   return (
     <main className="h-screen flex flex-col py-2">
@@ -138,44 +300,50 @@ export default function BusinessTypesPage() {
 
       {/* Table Container */}
       <div className="bg-white rounded-lg border border-gray-100 shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden mt-2">
-
         {/* Table Search / Filter Header */}
         <div className="shrink-0 border-b border-gray-200">
           {/* Column titles */}
-          <div className={`grid ${GRID_COLS} text-xs text-gray-500 font-medium`}>
-            <div />
-            <div />
+          <div className={`grid ${GRID_COLS} text-xs text-gray-500 font-medium bg-gray-50/50`}>
+            <div className="flex items-center justify-center py-2">
+              <input
+                type="checkbox"
+                className="w-3.5 h-3.5 accent-primary cursor-pointer"
+                checked={allSelected}
+                onChange={(e) => handleSelectAll(e.target.checked)}
+              />
+            </div>
+            <div className="px-2 py-2 text-center">Thao tác</div>
             <div className="px-3 py-2">Mã loại hình</div>
             <div className="px-3 py-2">Tên loại hình</div>
             <div className="px-3 py-2 text-center">Trạng thái</div>
           </div>
 
           {/* Filter inputs */}
-          <div className={`grid ${GRID_COLS} pb-2`}>
+          <div className={`grid ${GRID_COLS} pb-2 pt-2 bg-gray-50/20`}>
             <div />
             <div />
             <div className="px-3">
               <input
                 type="text"
-                placeholder=""
+                placeholder="Tìm mã..."
                 value={filterCode}
-                onChange={(e) => { setFilterCode(e.target.value); setCurrentPage(1) }}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm outline-none focus:border-primary transition-colors"
+                onChange={(e) => handleFilterChange('code', e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm outline-none focus:border-primary transition-colors bg-white"
               />
             </div>
             <div className="px-3">
               <input
                 type="text"
-                placeholder=""
+                placeholder="Tìm tên loại hình..."
                 value={filterName}
-                onChange={(e) => { setFilterName(e.target.value); setCurrentPage(1) }}
-                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm outline-none focus:border-primary transition-colors"
+                onChange={(e) => handleFilterChange('name', e.target.value)}
+                className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm outline-none focus:border-primary transition-colors bg-white"
               />
             </div>
             <div className="px-3">
               <select
                 value={filterStatus}
-                onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1) }}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
                 className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm outline-none focus:border-primary transition-colors bg-white"
               >
                 <option value="">Tất cả</option>
@@ -188,58 +356,61 @@ export default function BusinessTypesPage() {
 
         {/* Table Body - Scrollable */}
         <div className="flex-1 overflow-y-auto min-h-0">
-          {paginatedRows.map((item) => (
-            <div
-              key={item.id}
-              className={`grid ${GRID_COLS} border-b border-gray-100 hover:bg-blue-50/40 transition-colors text-sm text-gray-700`}
-            >
-              {/* Checkbox */}
-              <div className="flex items-center justify-center py-2.5">
-                <input
-                  type="checkbox"
-                  className="w-3.5 h-3.5 accent-primary cursor-pointer"
-                  checked={selectedIds.includes(item.id)}
-                  onChange={() => handleSelectOne(item.id)}
-                />
-              </div>
-
-              {/* Edit icon */}
-              <div className="flex items-center justify-center py-2.5">
-                <button
-                  type="button"
-                  onClick={() => openEdit(item)}
-                  className="text-gray-400 hover:text-primary transition-colors"
-                  title="Chỉnh sửa"
-                >
-                  <i className="fa-solid fa-pen text-xs" />
-                </button>
-              </div>
-
-              {/* Code */}
-              <div className="flex items-center px-3 py-2.5">
-                {item.code}
-              </div>
-
-              {/* Name */}
-              <div className="flex items-center px-3 py-2.5">
-                {item.name}
-              </div>
-
-              {/* Toggle */}
-              <div className="flex items-center justify-center py-2.5">
-                <ToggleSwitch
-                  checked={item.status}
-                  onChange={() => handleToggleStatus(item.id)}
-                />
-              </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <i className="fa-solid fa-spinner fa-spin text-xl text-primary" />
             </div>
-          ))}
-
-          {/* Empty state */}
-          {paginatedRows.length === 0 && (
+          ) : data.length === 0 ? (
             <div className="flex items-center justify-center py-12 text-sm text-gray-400">
               Không có dữ liệu
             </div>
+          ) : (
+            data.map((item) => (
+              <div
+                key={item.id}
+                className={`grid ${GRID_COLS} border-b border-gray-100 hover:bg-blue-50/40 transition-colors text-sm text-gray-700`}
+              >
+                {/* Checkbox */}
+                <div className="flex items-center justify-center py-2.5">
+                  <input
+                    type="checkbox"
+                    className="w-3.5 h-3.5 accent-primary cursor-pointer"
+                    checked={selectedIds.includes(item.id)}
+                    onChange={() => handleSelectOne(item.id)}
+                  />
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-center py-2.5">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(item)}
+                    className="text-gray-400 hover:text-primary transition-colors"
+                    title="Chỉnh sửa"
+                  >
+                    <i className="fa-solid fa-pen text-xs" />
+                  </button>
+                </div>
+
+                {/* Code */}
+                <div className="flex items-center px-3 py-2.5 font-medium text-gray-900">
+                  {item.code}
+                </div>
+
+                {/* Name */}
+                <div className="flex items-center px-3 py-2.5">
+                  {item.name}
+                </div>
+
+                {/* Toggle */}
+                <div className="flex items-center justify-center py-2.5">
+                  <ToggleSwitch
+                    checked={item.isActive}
+                    onChange={() => handleToggleStatus(item)}
+                  />
+                </div>
+              </div>
+            ))
           )}
         </div>
 
@@ -249,7 +420,10 @@ export default function BusinessTypesPage() {
           <div className="flex items-center gap-1.5">
             <select
               value={pageSize}
-              onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value))
+                setCurrentPage(1)
+              }}
               className="border border-gray-300 rounded px-2 py-1 text-sm outline-none cursor-pointer bg-white hover:border-gray-400 transition-colors"
             >
               <option value={10}>10</option>
@@ -260,17 +434,20 @@ export default function BusinessTypesPage() {
 
           {/* Page info */}
           <span className="text-gray-500 tabular-nums">
-            {filteredRows.length === 0
+            {totalItems === 0
               ? '0'
-              : `${(currentPage - 1) * pageSize + 1} - ${Math.min(currentPage * pageSize, filteredRows.length)}`
-            } of {filteredRows.length}
+              : `${(currentPage - 1) * pageSize + 1} - ${Math.min(
+                  currentPage * pageSize,
+                  totalItems
+                )}`}{' '}
+            of {totalItems}
           </span>
 
           {/* Navigation buttons */}
           <div className="flex items-center gap-1">
             <button
               type="button"
-              disabled={currentPage <= 1}
+              disabled={currentPage <= 1 || loading}
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
@@ -278,7 +455,7 @@ export default function BusinessTypesPage() {
             </button>
             <button
               type="button"
-              disabled={currentPage >= totalPages}
+              disabled={currentPage >= totalPages || loading}
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
@@ -294,10 +471,40 @@ export default function BusinessTypesPage() {
         editingItem={editingItem}
         form={form}
         errors={errors}
+        isLoading={isSaving}
         onClose={closeModal}
         onSave={handleSave}
         onChange={(field, value) => setForm((prev) => ({ ...prev, [field]: value }))}
       />
+
+      {/* Floating Bulk Action Bar */}
+      <BulkDeleteBar
+        selectedCount={selectedIds.length}
+        onDelete={() => setShowDeleteConfirm(true)}
+        onClearSelection={() => setSelectedIds([])}
+        loading={isDeleting}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        open={showDeleteConfirm}
+        count={selectedIds.length}
+        title="Xác nhận xóa loại hình kinh doanh"
+        description={
+          selectedIds.length === 1
+            ? 'Bạn có chắc chắn muốn xóa loại hình kinh doanh đã chọn?\nDữ liệu sau khi xóa sẽ không thể khôi phục.'
+            : `Bạn có chắc chắn muốn xóa ${selectedIds.length} loại hình kinh doanh đã chọn?\nDữ liệu sau khi xóa sẽ không thể khôi phục.`
+        }
+        onConfirm={handleDelete}
+        onCancel={() => {
+          if (!isDeleting) {
+            setShowDeleteConfirm(false)
+          }
+        }}
+        loading={isDeleting}
+      />
     </main>
   )
 }
+
+

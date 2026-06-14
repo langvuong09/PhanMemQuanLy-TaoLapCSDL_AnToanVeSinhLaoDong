@@ -1,5 +1,5 @@
 import { Base } from "./Base";
-import { ViewResponse } from "./types";
+import { ViewResponse, ViewData } from "./types/view";
 
 export class View extends Base {
     constructor() {
@@ -11,12 +11,17 @@ export class View extends Base {
     }
 
     async GetView(): Promise<ViewResponse> {
-        const result = await this.execute<ViewResponse>({
+        const result = await this.execute<ViewData>({
             method: "GET",
         });
 
         console.log(result);
 
-        return result;
+        return {
+            success: result.success,
+            code: result.code,
+            message: result.message || "",
+            data: result.data || { items: [], count: 0, pageSize: 10, pageNumber: 1 }
+        };
     }
 }
