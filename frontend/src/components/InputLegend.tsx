@@ -13,7 +13,7 @@ type InputLegendProps = {
 const InputLegend = ({
     label, require, errorMess, input
 }: InputLegendProps) => {
-    const classname = "outline-none w-full";
+    const classname = `outline-none w-full bg-transparent ${input.disabled ? "text-gray-400 cursor-not-allowed select-none" : "text-gray-800"}`;
 
     const [isShowPassword, setIsShowPassword] = useState<boolean>(false);
 
@@ -23,10 +23,10 @@ const InputLegend = ({
 
     return (
         <div className="flex flex-col gap-2 flex-1">
-            <div className={`relative ${input.disabled && "bg-gray-100"} ring ${errorMess ? "ring-red-600" : "ring-gray-400 focus-within:ring-blue-500 focus-within:ring-2"} px-3 py-2 rounded-lg`}>
+            <div className={`relative ${input.disabled ? "bg-gray-50 border border-gray-200" : `ring ${errorMess ? "ring-red-600" : "ring-gray-400 focus-within:ring-blue-500 focus-within:ring-2"}`} px-3 py-2 rounded-lg`}>
                 {label && (
                     <label
-                        className="absolute bg-white bottom-full translate-y-1/2 text-sm text-gray-600 px-1"
+                        className={`absolute ${input.disabled ? "bg-gray-50 text-gray-400" : "bg-white text-gray-600"} bottom-full translate-y-1/2 text-sm px-1`}
                         htmlFor={input.id}
                     >
                         {label}

@@ -49,6 +49,7 @@ export type Jwt = {
     "roleId": number,
     "avatarId": string,
     "doetId": string,
+    "avatar"?: string,
 
     "iat": number,
     "exp": number,

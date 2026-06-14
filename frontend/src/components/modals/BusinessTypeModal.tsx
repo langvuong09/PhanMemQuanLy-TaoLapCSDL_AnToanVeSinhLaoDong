@@ -1,14 +1,15 @@
  'use client'
 
-import type { BusinessType } from '@/src/mocks/business-types'
+import type { IBusinessType } from '@/src/api/BusinessType'
 import InputLegend from '@/src/components/InputLegend'
 import SelectLegend from '@/src/components/SelectLegend'
 
 type BusinessTypeModalProps = {
   isOpen: boolean
-  editingItem: BusinessType | null
+  editingItem: IBusinessType | null
   form: { code: string; name: string; status: string }
   errors: { code: string; name: string }
+  isLoading?: boolean
   onClose: () => void
   onSave: () => void
   onChange: (field: string, value: string) => void
@@ -19,6 +20,7 @@ export default function BusinessTypeModal({
   editingItem,
   form,
   errors,
+  isLoading = false,
   onClose,
   onSave,
   onChange,
@@ -44,6 +46,7 @@ export default function BusinessTypeModal({
                 placeholder: 'Nhập mã loại hình',
                 value: form.code,
                 onChange: (e) => onChange('code', (e.target as HTMLInputElement).value),
+                disabled: isLoading || !!editingItem,
               }}
               errorMess={errors.code}
             />
@@ -56,6 +59,7 @@ export default function BusinessTypeModal({
                 placeholder: 'Nhập tên loại hình',
                 value: form.name,
                 onChange: (e) => onChange('name', (e.target as HTMLInputElement).value),
+                disabled: isLoading,
               }}
               errorMess={errors.name}
             />
@@ -65,6 +69,7 @@ export default function BusinessTypeModal({
               select={{
                 value: form.status,
                 onChange: (e) => onChange('status', (e.target as HTMLSelectElement).value),
+                disabled: isLoading,
               }}
             >
               <option value="true">Sử dụng</option>
@@ -77,16 +82,22 @@ export default function BusinessTypeModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
+            disabled={isLoading}
+            className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Hủy bỏ
           </button>
           <button
             type="button"
             onClick={onSave}
-            className="px-5 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-[#4a22b8] transition-colors flex items-center gap-2"
+            disabled={isLoading}
+            className="px-5 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-[#4a22b8] transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <i className="fa-solid fa-floppy-disk text-xs" />
+            {isLoading ? (
+              <i className="fa-solid fa-spinner fa-spin text-xs" />
+            ) : (
+              <i className="fa-solid fa-floppy-disk text-xs" />
+            )}
             Lưu
           </button>
         </div>
@@ -94,3 +105,4 @@ export default function BusinessTypeModal({
     </div>
   )
 }
+
