@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import InputLegend from "./InputLegend";
 import Button from "./ui/Button";
 
@@ -6,9 +7,20 @@ type ChangeEmailProps = {
 }
 
 const ChangeEmail = ({ email }: ChangeEmailProps) => {
+    const [countDown, setCountDown] = useState<number>(60);
+    const [otp, setOtp] = useState<string>("");
+
+    useEffect(() => {
+        if (countDown <= 0) return;
+        const timer = setInterval(() => {
+            setCountDown((prev) => prev - 1);
+        }, 1000);
+        return () => clearInterval(timer);
+    }, [countDown]);
+
     return (
         <div className="fixed top-0 left-0 w-full h-screen bg-gray-900/50 z-100 flex items-center justify-center">
-            <div className="p-5 bg-white space-y-5">
+            <div className="p-5 bg-white rounded-lg space-y-5 w-96">
                 <div className="text-center space-y-2">
                     <h1 className="text-xl text-blue-600 font-semibold">THAY ĐỔI EMAIL</h1>
                     <p className="text-sm">
@@ -19,35 +31,43 @@ const ChangeEmail = ({ email }: ChangeEmailProps) => {
                     <p className="text-sm">Bạn vui lòng kiểm tra và điền mã xác thực</p>
                 </div>
 
-                <div>
+                <div className="space-y-2">
                     <InputLegend
-                        label="OPT"
+                        label="OTP"
                         require={true}
-                        input={{}}
+                        input={{
+                            type: "text",
+                            placeholder: "Nhập mã OTP",
+                            value: otp,
+                            onChange: (e) => setOtp(e.target.value),
+                            maxLength: 6,
+                        }}
                     />
 
-                    <div>
-                        {/*  */}
-
-                        <div>
-                            <span>Chưa nhận được mã ?</span>
-                            <button>Gửi lại</button>
-                        </div>
+                    <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-500">Chưa nhận được mã?</span>
+                        {countDown > 0 ? (
+                            <span className="text-gray-400">
+                                Gửi lại sau <strong className="text-blue-600">{countDown}s</strong>
+                            </span>
+                        ) : (
+                            <button
+                                className="text-blue-600 font-semibold hover:underline"
+                                onClick={() => setCountDown(60)}
+                            >
+                                Gửi lại
+                            </button>
+                        )}
                     </div>
                 </div>
 
-                <div className="flex flex-col">
-                    <Button variant="primary">
-                        Xác nhận
-                    </Button>
-
-                    <Button variant="outline">
-                        Hủy bỏ
-                    </Button>
+                <div className="flex flex-col gap-3">
+                    <Button variant="primary">Xác nhận</Button>
+                    <Button variant="outline">Hủy bỏ</Button>
                 </div>
             </div>
         </div>
-    )
-}
+    );
+};
 
 export default ChangeEmail;

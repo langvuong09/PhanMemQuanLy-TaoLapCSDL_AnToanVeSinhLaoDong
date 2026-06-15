@@ -15,6 +15,8 @@ const InputLegend = ({
 }: InputLegendProps) => {
     const classname = `outline-none w-full bg-transparent ${input.disabled ? "text-gray-400 cursor-not-allowed select-none" : "text-gray-800"}`;
 
+    const value = input.value || "";
+
     const [isShowPassword, setIsShowPassword] = useState<boolean>(false);
 
     const togglePasswordVisibility = () => {
@@ -41,6 +43,7 @@ const InputLegend = ({
                         className={classname}
                         type={input.type === "password" && !isShowPassword ? "password" : input.type === "password" ? "text" : input.type}
                         {...input}
+                        value={value}
                     />
 
                     {input.type === "password" && (

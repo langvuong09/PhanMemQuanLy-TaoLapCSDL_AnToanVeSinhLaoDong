@@ -1,17 +1,3 @@
-/**
- * fullName?: string;
-        dateOfBirth?: string;
-        gender?: string;
-        email?: string;
-        province?: OpenAdress;
-        district?: OpenAdress;
-        ward?: OpenAdress;
-        address?: string;
-        roleId?: number;
-        position?: string;
-        status?: boolean;
-        avatarId?: string;
- */
 
 import { ElementAddress } from "../User";
 
@@ -57,7 +43,7 @@ export type Jwt = {
 }
 
 export type JwtRole = {
-    id: 4;
+    id: number;
     role: string;
     name: string;
 }

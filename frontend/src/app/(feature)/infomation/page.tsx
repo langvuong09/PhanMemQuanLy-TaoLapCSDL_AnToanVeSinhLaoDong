@@ -1,9 +1,12 @@
 'use client'
 
+import { Media } from "@/src/api/Media";
 import { Jwt } from "@/src/api/types/jwt";
-import { ElementAddress, User, UserDetail } from "@/src/api/User";
+import { UserDetail } from "@/src/api/types/user";
+import { ElementAddress, User } from "@/src/api/User";
 import ChangeEmail from "@/src/components/ChangeEmail";
 import CheckboxLengend from "@/src/components/CheckboxLengend";
+import DateLengend from "@/src/components/DateLengend";
 import InputLegend from "@/src/components/InputLegend";
 import Loading from "@/src/components/Loading";
 import SelectLegend from "@/src/components/SelectLegend";
@@ -22,11 +25,6 @@ const InfomationPage = () => {
     const [jwt, setJwt] = useState<Jwt | null>(null);
     const [currentUser, setCurrentUser] = useState<UserDetail | null>(null);
 
-    const [message, setMessage] = useState<{
-        type: "success" | "error",
-        des: string
-    } | undefined>(undefined);
-
     const [submitForm, setSubmitForm] = useState<{
         fullName: string;
 
@@ -38,6 +36,8 @@ const InfomationPage = () => {
         province: ElementAddress;
         ward: ElementAddress;
         address: string;
+
+        avatarId?: string;
     }>({
         fullName: "",
         dateOfBirth: "",
@@ -79,8 +79,6 @@ const InfomationPage = () => {
     });
 
     const onSubmit = async () => {
-        console.log("Run here")
-
         const newErrors = {
             fullName: "",
             dateOfBirth: "",
@@ -114,6 +112,16 @@ const InfomationPage = () => {
             hasError = true;
         }
 
+        if (submitForm.dateOfBirth) {
+            const date = new Date(submitForm.dateOfBirth);
+            const today = new Date();
+
+            if (date > today) {
+                newErrors.dateOfBirth = "Ngày sinh phải nhỏ hơn hiện tại";
+                hasError = true;
+            }
+        }
+
         if (!submitForm?.province?.key || !submitForm?.province?.value.trim()) {
             newErrors.province = "Tỉnh/Thành phố không được để trống";
             hasError = true;
@@ -140,22 +148,26 @@ const InfomationPage = () => {
 
         try {
             setLoading(true);
-            const cls = new User();
-            await cls.UpdateSelfProfile(jwt?.id!, submitForm);
+            if (fileAvatar) {
+                const mcls = new Media;
+                const formData = new FormData();
+                formData.append('file', fileAvatar);
+                formData.append('fileType', "AVATAR");
+
+                const result = await mcls.UploadImage(formData);
+                if (result) {
+                    submitForm.avatarId = result.id;
+                }
+            }
+
+            const ucls = new User();
+            await ucls.UpdateSelfProfile(jwt?.id!, submitForm);
             setLoading(false);
             notificate?.showNotification({ type: "success", message: "Thay đổi thông tin thành công" });
-            setMessage({
-                type: "success",
-                des: "Đã cập nhật thông tin của bạn"
-            });
 
         } catch (error) {
             setLoading(false);
             notificate?.showNotification({ type: "error", message: "Thay đổi thông tin thất bại" });
-            setMessage({
-                type: "success",
-                des: "Cập nhật thông tin thất bại"
-            });
         }
     }
 
@@ -186,7 +198,6 @@ const InfomationPage = () => {
         setWards(openAddress.filterWards(provinceCodeSelected));
     }, [provinceCodeSelected]);
 
-    // Close dropdowns on outside click
     useEffect(() => {
         const handleClickOutside = (e: MouseEvent) => {
             if (provinceRef.current && !provinceRef.current.contains(e.target as Node)) {
@@ -225,7 +236,31 @@ const InfomationPage = () => {
         setShowWardDropdown(false);
     };
 
-    // Get data from jwt
+    // ---------- Handle upload avatar ----------
+    const inputRef = useRef<HTMLInputElement>(null);
+    const [fileAvatar, setFileAvater] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string>("");
+
+    const handleOpenFilePicker = () => {
+        inputRef.current?.click();
+    }
+
+    const handleChanegFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) {
+            return;
+        }
+
+        if (!['image/jpeg', 'image/jpg', 'image/png'].includes(file.type)) {
+            notificate?.showNotification({ type: "error", message: "Chi chấp nhập file là hình ảnh" });
+            return;
+        }
+        setFileAvater(file);
+        const object = URL.createObjectURL(file);
+        setImagePreview(object);
+    }
+
+    // ---------- Handle fetch current state ----------
     useEffect(() => {
         const token = localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken") || "";
         if (token) {
@@ -239,16 +274,37 @@ const InfomationPage = () => {
             setLoading(true);
             const cls = new User();
             const result = await cls.GetUserDetailById(jwt.id);
+
+            var province, ward = null;
+
             setCurrentUser(result);
             setSubmitForm({
-                fullName: result.fullName,
-                dateOfBirth: result.dateOfBirth,
-                gender: result.gender,
-                position: result.position,
-                province: result.province,
-                ward: result.ward,
-                address: result.address
+                fullName: result.fullName || "",
+                dateOfBirth: result.dateOfBirth || "",
+                gender: result.gender || "",
+                position: result.position || "",
+                province: result.province || { key: 0, value: "" },
+                ward: result.ward || { key: 0, value: "" },
+                address: result.address || ""
             });
+
+            province = result.province;
+            ward = result.ward;
+
+            if (province) {
+                setProvinceSearch(province.value)
+            } else {
+                setProvinceSearch("");
+            }
+
+            if (ward) {
+                setWardSearch(ward.value);
+            } else {
+                setWardSearch("");
+            }
+
+            setImagePreview(result.avatar.url);
+
             setLoading(false);
         }
     }
@@ -265,8 +321,10 @@ const InfomationPage = () => {
                 <Loading />
             )}
 
-            <ChangeEmail email={currentUser?.email || ""} />
-            
+            {isChangeEmail && (
+                <ChangeEmail email={currentUser?.email || ""} />
+            )}
+
             <TopHero
                 lable="Chi tiết người dùng"
                 component={
@@ -282,21 +340,21 @@ const InfomationPage = () => {
                 }
             />
 
-            {message && (
-                <div>
-
-                </div>
-            )}
-
             <div className="grid grid-cols-12 gap-5">
                 {/* Left card */}
                 <div className="col-span-4 bg-white shadow-3drops rounded-lg px-10 py-10 space-y-10 h-fit">
                     <div className="space-y-5">
                         <div className="flex justify-center">
                             <div className="rounded-full p-3 border border-gray-500 border-dashed">
-                                <button className="text-gray-500 w-40 h-40 bg-gray-200 rounded-full">
-                                    <i className="fa-solid fa-camera-rotate text-2xl"></i>
-                                    <p className="text-sm">Tải ảnh đại diện</p>
+                                <button className="text-gray-500 w-40 h-40 bg-gray-200 rounded-full overflow-hidden" onClick={handleOpenFilePicker}>
+                                    {imagePreview ? (
+                                        <img className="w-full h-full object-cover" src={imagePreview} alt="" />
+                                    ) : (
+                                        <>
+                                            <i className="fa-solid fa-camera-rotate text-2xl"></i>
+                                            <p className="text-sm">Tải ảnh đại diện</p>
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </div>
@@ -304,6 +362,9 @@ const InfomationPage = () => {
                             <p>*.jpeg, *.jpg, *.png</p>
                             <p>Kích thước tối đa 5MB</p>
                         </div>
+
+                        {/* Hidden */}
+                        <input type="file" className="hidden" ref={inputRef} onChange={handleChanegFile} />
                     </div>
                     <div className="flex items-center justify-between">
                         <span className="font-semibold">Kích hoạt</span>
@@ -324,20 +385,19 @@ const InfomationPage = () => {
                                     require={true}
                                     input={{ type: "text", placeholder: "vnagroup", disabled: true }}
                                 />
-                                <InputLegend
+
+                                <DateLengend
                                     label="Ngày tháng năm sinh"
                                     require={true}
-                                    input={{
-                                        type: "date",
-                                        value: submitForm.dateOfBirth,
-                                        onChange: (event) => {
-                                            console.log(event.target.value)
-                                            setSubmitForm((prev) => ({ ...prev, dateOfBirth: event.target.value }));
-                                            setErrorForm((prev) => ({ ...prev, dateOfBirth: "" }));
-                                        },
+                                    value={submitForm.dateOfBirth}
+                                    onChange={(val) => {
+                                        setSubmitForm((prev) => ({ ...prev, dateOfBirth: val }));
+                                        setErrorForm((prev) => ({ ...prev, dateOfBirth: "" }));
                                     }}
                                     errorMess={errorForm?.dateOfBirth}
+                                    errorInput="Dữ liệu truyền vào không hợp lệ"
                                 />
+
                                 <InputLegend
                                     label="Chức danh"
                                     input={{
@@ -435,7 +495,7 @@ const InfomationPage = () => {
                                             input={{
                                                 type: "text",
                                                 placeholder: "Tìm tỉnh/thành phố",
-                                                value: submitForm.province.value || provinceSearch,
+                                                value: provinceSearch,
                                                 onChange: (event) => {
                                                     setProvinceSearch(event.target.value);
                                                     setShowProvinceDropdown(true);
@@ -545,8 +605,8 @@ const InfomationPage = () => {
                         </div>
                     </div>
                 </div>
-            </div>
-        </main>
+            </div >
+        </main >
     );
 };
 

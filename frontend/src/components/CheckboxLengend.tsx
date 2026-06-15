@@ -15,7 +15,7 @@ const CheckboxLengend = ({
         <div className="checkbox-wrapper-64">
             <label className="switch">
                 <input type="checkbox" disabled={checkbox.disabled} checked={isChecked} onChange={onChange} />
-                <span className="slider"></span>
+                <span className={`slider ${checkbox.disabled && "disable"}`}></span>
             </label>
         </div>
     )
