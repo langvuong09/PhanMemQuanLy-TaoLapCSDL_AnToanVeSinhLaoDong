@@ -12,6 +12,6 @@ import { EmailModule } from 'src/helper/email.module';
   imports: [TypeOrmModule.forFeature([User]) , PermissionModule, RedisModule, EmailModule],
   controllers: [UserController],
   providers: [UserService],
-  exports: [UserService , JwtModule],
+  exports: [UserService],
 })
 export class UserModule {}
